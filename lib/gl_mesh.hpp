@@ -10,6 +10,7 @@
 #include <glm/ext/vector_float3.hpp>
 #include <glm/glm.hpp>
 #include <sys/types.h>
+#include <type_traits>
 
 
 template<typename T>
@@ -20,15 +21,25 @@ inline static constexpr int vertex_dimention(){
     return sizeof(T)/sizeof(float);
 }
 
+enum mesh_property{
+    HAS_VERTICIES,
+    HAS_TEXTUREMAP,
+    HAS_UV = HAS_TEXTUREMAP,
+    HAS_NORMALS,
+    HAS_TANGENTS,
+    HAS_BITANGENTS,
+    STORES_VERTEX_COUNT,
+};
+
 
 template<
-    bool _has_verticies,
-    bool _has_texturemaps,
-    bool _has_normals,
-    bool _has_tangents,
-    bool _has_bitangents,
-    bool _has_indecies,
-    bool _stores_vertex_count = true
+    bool _has_verticies = true,
+    bool _has_texturemaps = false,
+    bool _has_normals = false,
+    bool _has_tangents = false,
+    bool _has_bitangents = false,
+    bool _has_indecies = false,
+    bool _stores_vertex_count = false
 >
 struct gl_mesh_t{
     inline static constexpr bool has_verticies(){return _has_verticies;}
@@ -106,35 +117,35 @@ struct gl_mesh_t{
             a_gl_verticies->data(verticies, count*sizeof(*verticies), gl::enums::buffer::usage::STATIC_DRAW);
             a_gl_verticies->attribute(gl::shader_spec::aVertex, sizeof(*verticies)/sizeof(float), gl::enums::buffer::FLOAT);
 
-        }else{ gl_vao.disable_attribute(gl::shader_spec::aVertex); }
+        }else { gl_vao.disable_attribute(gl::shader_spec::aVertex); }
         if constexpr (has_texturemaps())    {
             gl_vao.enable_attribute (gl::shader_spec::aUV);
             a_gl_texturemap->bind();
             a_gl_texturemap->data(texturemaps, count*sizeof(*texturemaps), gl::enums::buffer::usage::STATIC_DRAW);
             a_gl_texturemap->attribute(gl::shader_spec::aUV, sizeof(*texturemaps)/sizeof(float), gl::enums::buffer::FLOAT);
 
-        }else{ gl_vao.disable_attribute(gl::shader_spec::aUV); }
+        }else { gl_vao.disable_attribute(gl::shader_spec::aUV); }
         if constexpr (has_normals())        {
             gl_vao.enable_attribute (gl::shader_spec::aNormal);
             a_gl_normals->bind();
             a_gl_normals->data(normals, count*sizeof(*normals), gl::enums::buffer::usage::STATIC_DRAW);
             a_gl_normals->attribute(gl::shader_spec::aNormal, sizeof(*normals)/sizeof(float), gl::enums::buffer::FLOAT);
 
-        }else{ gl_vao.disable_attribute(gl::shader_spec::aNormal); }
+        }else { gl_vao.disable_attribute(gl::shader_spec::aNormal); }
         if constexpr (has_tangents())       {
             gl_vao.enable_attribute (gl::shader_spec::aTangent);
             a_gl_tangents->bind();
             a_gl_tangents->data(tangents, count*sizeof(*tangents), gl::enums::buffer::usage::STATIC_DRAW);
             a_gl_tangents->attribute(gl::shader_spec::aTangent, sizeof(*tangents)/sizeof(float), gl::enums::buffer::FLOAT);
 
-        }else{ gl_vao.disable_attribute(gl::shader_spec::aTangent); }
+        }else { gl_vao.disable_attribute(gl::shader_spec::aTangent); }
         if constexpr (has_bitangents())     {
             gl_vao.enable_attribute (gl::shader_spec::aBitangent);
             a_gl_bitangents->bind();
             a_gl_bitangents->data(bitangents, count*sizeof(*bitangents), gl::enums::buffer::usage::STATIC_DRAW);
             a_gl_bitangents->attribute(gl::shader_spec::aBitangent, sizeof(*bitangents)/sizeof(float), gl::enums::buffer::FLOAT);
 
-        }else{ gl_vao.disable_attribute(gl::shader_spec::aBitangent); }
+        }else { gl_vao.disable_attribute(gl::shader_spec::aBitangent); }
         if constexpr(has_indecies()){
             a_gl_indecies->bind();
             a_gl_indecies->data(indecies, count*sizeof(*indecies), gl::enums::buffer::STATIC_DRAW);
@@ -149,3 +160,18 @@ struct gl_mesh_t{
 
 
 };
+
+template<mesh_property property, mesh_property ...mesh_properties>
+inline static constexpr bool mesh_properties_contains(){
+    return ((property == mesh_properties) || ...);
+}
+
+template<mesh_property ...mesh_properties>
+using gl_mesh = gl_mesh_t<
+    mesh_properties_contains<HAS_VERTICIES, mesh_properties...>(),
+    mesh_properties_contains<HAS_TEXTUREMAP, mesh_properties...>(),
+    mesh_properties_contains<HAS_NORMALS, mesh_properties...>(),
+    mesh_properties_contains<HAS_TANGENTS, mesh_properties...>(),
+    mesh_properties_contains<HAS_BITANGENTS, mesh_properties...>(),
+    mesh_properties_contains<STORES_VERTEX_COUNT, mesh_properties...>()
+>;
