@@ -1,0 +1,6 @@
+CompileFlags:
+  Add: 
+    - -Wall
+    - -I/home/pikku/code/3d-sdl3/lib/
+    - -I/home/pikku/code/sdl3/head/
+    - -I/home/pikku/code/engine/
