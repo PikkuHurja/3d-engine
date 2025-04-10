@@ -135,5 +135,5 @@
         ~PRG_TYPE(program_name)() = delete;                                    \
     };
 
-PRG_DEFINE(test_program, (1u, 1, 1), (("path", gl::enums::shader::FRAGMENT)), ((a, uint))((b, float)), {});
+// PRG_DEFINE(test_program, (1u, 1, 1), (("path", gl::enums::shader::FRAGMENT)), ((a, uint))((b, float)), {});
 // Expands to
