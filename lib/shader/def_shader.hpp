@@ -131,8 +131,8 @@
         inline static void dispatch(glm::uvec3 n){PRG_PROGRAM_POINTER->dispatch(n, PRG_WORKGROUPS);}\
         inline static void dispatch(glm::uvec2 n){PRG_PROGRAM_POINTER->dispatch(n, PRG_WORKGROUPS);}\
         inline static void dispatch(uint n)      {PRG_PROGRAM_POINTER->dispatch(n, PRG_WORKGROUPS);}\
-        PRG_TYPE(program_name)() = delete;                                    \
-        ~PRG_TYPE(program_name)() = delete;                                    \
+        PRG_TYPE(program_name)() = delete;\
+        ~PRG_TYPE(program_name)() = delete;\
     };
 
 // PRG_DEFINE(test_program, (1u, 1, 1), (("path", gl::enums::shader::FRAGMENT)), ((a, uint))((b, float)), {});

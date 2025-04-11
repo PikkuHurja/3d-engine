@@ -4,11 +4,16 @@
 #include <glm/ext/vector_uint2.hpp>
 
 #include "gl/draw_enums.hpp"
+#include "gl/shader_enums.hpp"
 #include "gl_mesh.hpp"
+#include "shader/def_shader.hpp"
 
 namespace obj {
 
     struct terrain_t{
+
+
+
             //assume 1u = 1m
         inline static constexpr glm::uvec2 _S_ChunkSize       {64u};    //units per chunc
         inline static constexpr glm::uvec2 _S_ChunkMeshSize   {64u};    //verticies per chunck
@@ -17,6 +22,7 @@ namespace obj {
         gl_mesh<HAS_VERTICIES, HAS_TEXTUREMAP>   _M_Mesh;
         glm::uvec2              _M_Position;
         
+        PRG_DEFINE(generate_verticies, (_S_ChunkMeshSize.x, _S_ChunkMeshSize.y), (("path", gl::enums::shader::COMPUTE)), ((chunk_size, glm::uvec2)), {})
 
         void draw(){
             _M_Mesh.draw(_S_DrawMode, 0, _S_VertexCount);
