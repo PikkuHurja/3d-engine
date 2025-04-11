@@ -2,6 +2,7 @@
 
 #include <SDL/SDL.h>
 #include <SDL/Window.h>
+#include <iostream>
 #include <opengl-framework/Wrappers/GLEW.hpp>
 #include <SDL/GL.h>
 #include <functional>
@@ -10,6 +11,8 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <renderdoc_app.h>
+#include <dlfcn.h>
 
 
 
@@ -71,20 +74,67 @@ struct appstate_t{
         std::mutex& opengl_mutex()          {return l_gl;}
 
         void init() const{
-
+            call_queue();
         }
     } gl;
 
+
+    struct debug_t{
+        
+        struct opengl_t{
+            void *dl_handle = nullptr;
+            RENDERDOC_API_1_1_2 *rdoc_api = nullptr;
+
+            inline void capture_begin(){
+                if(rdoc_api) 
+                    rdoc_api->StartFrameCapture(nullptr, nullptr);
+            }
+            inline void capture_end(){
+                if(rdoc_api) 
+                    rdoc_api->EndFrameCapture(nullptr, nullptr);
+            }
+            void init(){
+                    ////////////// GL BOILERPLATE //////////////    
+                std::cout << "Using opengl: " << glGetString(GL_VERSION) << '\n';
+                glEnable(GL_DEBUG_OUTPUT);
+                glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+                glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
+                    std::cerr << "GL Debug["<<id<<"]{src: "<< source << ", type: " << type << ", lvl: "<< severity <<" }: " << std::string_view{message, static_cast<size_t>(length < 0 ? 0 : length)} << std::endl;
+                }, nullptr);
+                glClearColor(1,0, 1, 1);
+
+                if(dl_handle) deinit();
+
+                dl_handle = dlopen("librenderdoc.so", RTLD_NOW | RTLD_NOLOAD);
+                if (dl_handle) {
+                    pRENDERDOC_GetAPI getApi = (pRENDERDOC_GetAPI)dlsym(dl_handle, "RENDERDOC_GetAPI");
+                    if (getApi) getApi(eRENDERDOC_API_Version_1_1_2, (void **)&rdoc_api);
+                }
+            }
+
+            void deinit(){
+                if(dl_handle)
+                    dlclose(dl_handle);
+                dl_handle = nullptr;
+                rdoc_api  = nullptr;
+            }
+        } opengl;
+
+        void init(){
+            opengl.init();
+        }
+        void deinit(){
+            opengl.deinit();
+        }
+    } debug;
+
     struct render_t{
-
-
         void init() const{}
     } render;
 
-
-
     void init(){
         core.init();
+        debug.init();
         gl.init();
         render.init();
     }

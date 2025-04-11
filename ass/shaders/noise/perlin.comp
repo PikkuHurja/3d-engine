@@ -4,7 +4,7 @@ layout(binding = 0, r8) uniform writeonly image2D outputImage;
 
 uniform uint seed = 0x578437adU; // can be set to something else if you want a different set of random values
 uniform int frequency = 1;
-uniform int octaveCount = 6;
+uniform int octave_count = 12;
 uniform float persistence = 0.5;
 uniform float lacunarity = 2.0;
 
@@ -88,12 +88,12 @@ float perlinNoise(vec2 position, uint seed) {
     return interpolate(value1, value2, value3, value4, fade(fractPosition));
 }
 
-float perlinNoise(vec2 position, int frequency, int octaveCount, float persistence, float lacunarity, uint seed) {
+float perlinNoise(vec2 position) {
     float value = 0.0;
     float amplitude = 1.0;
     float currentFrequency = float(frequency);
     uint currentSeed = seed;
-    for (int i = 0; i < octaveCount; i++) {
+    for (int i = 0; i < octave_count; i++) {
         currentSeed = hash(currentSeed, 0x0U); // create a new seed for each octave
         value += perlinNoise(position * currentFrequency, currentSeed) * amplitude;
         amplitude *= persistence;
@@ -108,7 +108,7 @@ void main() {
     vec2 position = vec2(gl_GlobalInvocationID.xy) / vec2(imageSize(outputImage));
     // float frequency = 16.0;
     // float value = perlinNoise(position * frequency, seed); // single octave perlin noise
-    float value = perlinNoise(position, 1, 6, 0.5, 2.0, seed); // multiple octaves
+    float value = perlinNoise(position); // multiple octaves
     value = (value + 1.0) * 0.5; // convert from range [-1, 1] to range [0, 1]
 
     imageStore(outputImage, ivec2(gl_GlobalInvocationID.xy), vec4(vec3(value), 1));

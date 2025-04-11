@@ -10,7 +10,7 @@ namespace noise {
 
         ((seed, uint))
         ((frequency, int))
-        ((octaveCount, int))
+        ((octave_count, int))
         ((persistence, float))
         ((lacunarity, float)), 
         
