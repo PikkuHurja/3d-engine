@@ -80,10 +80,7 @@ vec2 fade(vec2 t) {
 	return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
 }
 
-float perlinNoise(vec2 position, uint seed) {
-    vec2 floorPosition = floor(position);
-    vec2 fractPosition = position - floorPosition;
-    uvec2 cellCoordinates = uvec2(floorPosition);
+float perlinNoise(vec2 fractPosition, uvec2 cellCoordinates, uint seed) {
     float value1 = dot(gradientDirection(hash(cellCoordinates, seed)), fractPosition);
     float value2 = dot(gradientDirection(hash((cellCoordinates + uvec2(1, 0)), seed)), fractPosition - vec2(1.0, 0.0));
     float value3 = dot(gradientDirection(hash((cellCoordinates + uvec2(0, 1)), seed)), fractPosition - vec2(0.0, 1.0));
@@ -98,7 +95,9 @@ float perlinNoise(vec2 position) {
     uint currentSeed = seed;
     for (int i = 0; i < octave_count; i++) {
         currentSeed = hash(currentSeed, 0x0U); // create a new seed for each octave
-        value += perlinNoise(position * currentFrequency, currentSeed) * amplitude;
+        uvec2 floor_p = uvec2(floor(position * currentFrequency));
+        vec2 fract_p = position-floor_p;
+        value += perlinNoise(fract_p, floor_p+, currentSeed) * amplitude;
         amplitude *= persistence;
         currentFrequency *= lacunarity;
     }
@@ -108,8 +107,11 @@ float perlinNoise(vec2 position) {
 
 
 void main() {
+    if(imageSize(outputImage).x <= gl_GlobalInvocationID.x || imageSize(outputImage).y <= gl_GlobalInvocationID.y)
+        return;
     vec2 position = vec2(gl_GlobalInvocationID.xy) / vec2(imageSize(outputImage));
-    float value = perlinNoise(position + (uvec2(chunk_position)+offset_to_mitigate_negative_numbers));
+
+    float value = perlinNoise(position);
     value = (value + 1.0) * 0.5; // convert from range [-1, 1] to range [0, 1]
 
     imageStore(outputImage, ivec2(gl_GlobalInvocationID.xy), vec4(vec3(value), 1));
