@@ -8,7 +8,9 @@
 #include <istream>
 #include <stdexcept>
 #include <string>
+#include <sys/types.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 inline void skip_until_nl(std::istream& is){
@@ -47,23 +49,52 @@ inline void skip_until_bc_end(std::istream& is){
 #define get_break(var)\
     var = is.get(); if(var == eof) break;
 
-inline void read_until_nec(std::istream& is, std::string& to, char c){
+
+inline bool read_until_nec(std::istream& is, std::string& to, char c){
     int charachter;
     constexpr int eof = std::ifstream::traits_type::eof();
     do {
         get_break(charachter)
         if(charachter == c)
-            break;
+            return true;;
         if(charachter == '\\')
             is.ignore(1);
         else to.push_back(c);
 
     }while (1);
+    return false;
+}
+inline bool read_until_nec(std::istream& is, std::string& to, const std::bitset<256>& set){
+    int charachter;
+    constexpr int eof = std::ifstream::traits_type::eof();
+    do {
+        get_break(charachter)
+        if(set[charachter])
+            return true;
+        if(charachter == '\\')
+            is.ignore(1);
+        else to.push_back(charachter);
 
+    }while (1);
+    return false;
+}
+inline bool read_until_nec(std::istream& is, std::string& to, const std::unordered_set<char>& set){
+    int charachter;
+    constexpr int eof = std::ifstream::traits_type::eof();
+    do {
+        get_break(charachter)
+        if(set.contains(charachter))
+            return true;
+        if(charachter == '\\')
+            is.ignore(1);
+        else to.push_back(charachter);
+
+    }while (1);
+    return false;
 }
 
-
-inline void load(const std::filesystem::path& path, std::string& to, std::unordered_map<std::string, std::string>& variable_mapping){
+inline static std::unordered_map<std::string, void(*)(std::istream& is, std::string& to, std::unordered_map<std::string, std::string>& variable_mapping, std::vector<std::filesystem::path>& include_paths)> _M_MacroMap;
+inline void load(const std::filesystem::path& path, std::string& to, std::unordered_map<std::string, std::string>& variable_mapping, std::vector<std::filesystem::path>& include_paths){
     std::ifstream is{path};
 
     int charachter;
@@ -72,7 +103,10 @@ inline void load(const std::filesystem::path& path, std::string& to, std::unorde
     do{
         get_break(charachter)
 
-        if(charachter == '/'){
+        if(charachter == '\\'){
+            is.ignore(1);
+            continue;
+        }else if(charachter == '/'){
             peek_break(charachter)
 
             if(charachter == '/'){
@@ -90,16 +124,31 @@ inline void load(const std::filesystem::path& path, std::string& to, std::unorde
             peek_break(charachter);
             if(charachter == '{'){
                 // variable
-                std::string varname;
                 is.ignore(1);
-                read_until_nec(is, varname, '}');
+
+                std::string varname;
+                auto pos = is.tellg();
+                
+                if(!read_until_nec(is, varname, '}'))
+                    throw std::runtime_error("Could not find matching '{' (started at [" + std::to_string(pos) + "]) in shader " + path.string());
+                
                 auto it = variable_mapping.find(varname);
+                
                 if(it == variable_mapping.end())
                     throw std::runtime_error("Could not find variable '" + varname +"' in variable_mapping pool for shader " + path.string());
-                to+=it->second;
-            }else if (charachter == 'i'){
                 
+                to+=it->second;
 
+            }else{
+                std::string varname;
+                is >> varname;
+
+                auto it = _M_MacroMap.find(varname);
+                if(it == _M_MacroMap.end())
+                    throw std::runtime_error("Could not find macro '" + varname +"' in _M_MacroMap pool for shader " + path.string());
+                
+                if(it->second)
+                    it->second(is, to, variable_mapping, include_paths);
             }
         }
 

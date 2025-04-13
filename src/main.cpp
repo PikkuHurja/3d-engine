@@ -5,7 +5,6 @@
 #include "gl/texture.hpp"
 #include "gl/framebuffer.hpp"
 #include "gl/texture_enums.hpp"
-#include "noise/perlin-tileable.hpp"
 #include <SDL3/SDL_keycode.h>
 #include <exception>
 #include <glm/ext/vector_int2.hpp>
@@ -21,7 +20,10 @@
 #include <SDL/SDL.h>
 #include <SDL/Window.h>
 #include <SDL/GL.h>
+
 #include "noise/perlin.hpp"
+#include "noise/perlin-tileable.hpp"
+#include "noise/value.hpp"
 
 
 
@@ -33,18 +35,21 @@ int frequency = 1;
 int seed = 1;
 
 glm::ivec2 position{0};
+    using nfn = noise::value_t;
 
 sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     appstate_t::_S_ActiveState = *reinterpret_cast<appstate_t**>(appstate) = new appstate_t;
     appstate_t& state = *appstate_t::_S_ActiveState;
     state.init();
-    noise::perlin_tile_t::refresh_shader();
-    std::cout << "Program: " << noise::perlin_tile_t::_S_Program->id() << '\n';
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<10}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+
+    nfn::refresh_shader();
+    std::cout << "Program: " << nfn::_S_Program->id() << '\n';
+
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<4}, gl::enums::texture::format_storage::STORAGE_R8, 1);
     fb0.create();
     fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
 
-    tex1.create(gl::enums::texture::Texture2D, glm::uvec2{1<<10}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex1.create(gl::enums::texture::Texture2D, glm::uvec2{tex0.texture_size()}, gl::enums::texture::format_storage::STORAGE_R8, 1);
     fb1.create();
     fb1.attach(tex1, gl::enums::framebuffer::COLOR_ATTACHMENT0);
 
@@ -60,26 +65,26 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    noise::perlin_tile_t::use();
-    noise::perlin_tile_t::set_frequency(frequency);
-    noise::perlin_tile_t::set_seed(seed);
-    noise::perlin_tile_t::set_chunk_position(position);
+    nfn::use();
+    //nfn::set_frequency(frequency);
+    nfn::set_seed(seed);
+    nfn::set_chunk_position(position);
     tex0.bind_base(0, GL_WRITE_ONLY);
-    noise::perlin_tile_t::dispatch(glm::uvec2{tex0.texture_size()});
+    nfn::dispatch(glm::uvec2{tex0.texture_size()});
 
 
-    noise::perlin_tile_t::use();
-    noise::perlin_tile_t::set_frequency(frequency);
-    noise::perlin_tile_t::set_seed(seed);
-    noise::perlin_tile_t::set_chunk_position(position+glm::ivec2(1, 0));
+    nfn::use();
+    //nfn::set_frequency(frequency);
+    nfn::set_seed(seed);
+    nfn::set_chunk_position(position+glm::ivec2(1, 0));
     tex1.bind_base(0, GL_WRITE_ONLY);
-    noise::perlin_tile_t::dispatch(glm::uvec2{tex0.texture_size()});
+    nfn::dispatch(glm::uvec2{tex0.texture_size()});
 
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     auto ws = state.core.p_window->GetWindowSize();
 
-    fb0.blit_screen(glm::ivec2{0}, tex0.texture_size(), glm::ivec2{0}, glm::ivec2{ws.x/2, ws.y}, gl::enums::framebuffer::mask::COLOR, gl::enums::framebuffer::LINEAR);
-    fb1.blit_screen(glm::ivec2{0}, tex1.texture_size(), glm::ivec2{ws.x/2, 0}, glm::ivec2{ws.x, ws.y}, gl::enums::framebuffer::mask::COLOR, gl::enums::framebuffer::LINEAR);
+    fb0.blit_screen(glm::ivec2{0}, tex0.texture_size(), glm::ivec2{0}, glm::ivec2{ws.x/2, ws.y}, gl::enums::framebuffer::mask::COLOR, gl::enums::framebuffer::NEAREST);
+    fb1.blit_screen(glm::ivec2{0}, tex1.texture_size(), glm::ivec2{ws.x/2, 0}, glm::ivec2{ws.x, ws.y}, gl::enums::framebuffer::mask::COLOR, gl::enums::framebuffer::NEAREST);
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return SDL_APP_CONTINUE;
