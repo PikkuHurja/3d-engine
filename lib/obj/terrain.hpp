@@ -28,13 +28,12 @@ namespace obj {
         void draw(){
             _M_Mesh.draw(_S_DrawMode, 0, _S_VertexCount);
         }
-        
             //make an instancer
         //void draw_all(){
         //    _M_Mesh.draw(_S_DrawMode, 0, _S_VertexCount);
         //}
 
-        void generate(glm::uvec2 seed, glm::uvec2 position){
+        void generate(uint seed, glm::uvec2 position){
             //glm::vec3 verticies[_S_VertexCount]={{0,0,0}};
             //glm::vec2 uv[_S_VertexCount]={{0,0}};
             _M_Mesh.create<glm::vec3>(_S_VertexCount);

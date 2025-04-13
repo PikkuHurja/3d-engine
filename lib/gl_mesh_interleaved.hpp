@@ -91,6 +91,7 @@ struct gl_mesh_interleaved_t{
 
     inline bool create(uint vertex_count, uint indecie_count, void* vertex_data = nullptr, uint* indecie_data = nullptr){
         if(!gl_vao) gl_vao.create();
+        gl_vao.bind();
 
         if constexpr(_has_indecies){
             if(!*gl_indecies) gl_indecies->create();
@@ -132,6 +133,7 @@ struct gl_mesh_interleaved_t{
             gl_data.attribute(gl::shader_spec::aBitangent, bitangents_attrib_size(), gl::enums::buffer::FLOAT, per_vertex_size(), GL_FALSE, bitangents_size());
         }else gl_vao.disable_attribute(gl::shader_spec::aBitangent);
 
+        gl_vao.unbind();
     }
     /*
         use nullptr for unset
@@ -147,6 +149,7 @@ struct gl_mesh_interleaved_t{
         uint* indecie_data
     ){
         if(!gl_vao) gl_vao.create();
+        gl_vao.bind();
 
         if constexpr(_has_indecies){
             if(!*gl_indecies) gl_indecies->create();
@@ -174,6 +177,7 @@ struct gl_mesh_interleaved_t{
     
         gl_data.data(vertex_data.get(), per_vertex_size()*vertex_count, gl::enums::buffer::STATIC_DRAW);
     
+        gl_vao.unbind();
     }
 
 
