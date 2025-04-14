@@ -78,11 +78,8 @@ void capture_cursor(appstate_t& state, bool on){
         std::cerr << SDL_GetError() << '\n';
 }
 void refresh_cursor(appstate_t& state){
-    if(SDL_GetWindowRelativeMouseMode(*state.core.p_window) != should_capture_cursor)
-        SDL_SetWindowMouseGrab(*state.core.p_window, should_capture_cursor);
-    if(SDL_GetWindowMouseGrab(*state.core.p_window) != should_capture_cursor)
-        SDL_SetWindowMouseGrab(*state.core.p_window, should_capture_cursor);
-
+    SDL_SetWindowRelativeMouseMode(*state.core.p_window, should_capture_cursor);
+    SDL_SetWindowMouseGrab(*state.core.p_window, should_capture_cursor);
 }
 
 glm::ivec2 position{0};
@@ -197,7 +194,7 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
     if(event->type == SDL_EVENT_QUIT){
-        capture_cursor(state, false);
+        capture_cursor(state, false);   //hangs for a while if set to true
         return SDL_APP_SUCCESS;
     }
 
