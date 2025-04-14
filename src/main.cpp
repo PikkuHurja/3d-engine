@@ -1,6 +1,10 @@
 #include <GL/glew.h>
 
 #include "appstate.hpp"
+#include "camera/camera.hpp"
+#include "camera/orthographic.hpp"
+#include "camera/perspective.hpp"
+#include "camera/projection.hpp"
 #include "gl/draw_enums.hpp"
 #include "gl/framebuffer_enums.hpp"
 #include "gl/program.hpp"
@@ -9,10 +13,14 @@
 #include "gl/texture_enums.hpp"
 #include "gl_mesh.hpp"
 #include "obj/plane.hpp"
+#include "obj/transform.hpp"
 #include "shader/load.hpp"
 #include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_pixels.h>
 #include <exception>
+#include <glm/ext/quaternion_float.hpp>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_float4.hpp>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_uint2.hpp>
 #include <iostream>
@@ -31,11 +39,16 @@
 #include "noise/perlin-tileable.hpp"
 #include "noise/value.hpp"
 
+#include <cppostream/glm/glm.hpp>
 
+
+camera_t camera{nullptr};
 
 gl::program basic{nullptr};
-gl::program passthru{nullptr};
+//gl::program passthru{nullptr};
 gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
+
+
 
 gl::texture tex0;
 gl::texture tex1;
@@ -54,7 +67,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
     std::cout << "Loading...\n";
     basic = shader::load("ass/shaders/basic");
-    passthru = shader::load("ass/shaders/passthru");
+    //passthru = shader::load("ass/shaders/passthru");
     std::cout << "Loaded\n";
 
     glm::vec3 verticies[]={
@@ -65,6 +78,8 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     };
     p_plane = new gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>;
     p_plane->create(sizeof(verticies)/sizeof(*verticies), 0, verticies);
+
+    camera.create(transform{{0, 0, -1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
     /*
     nfn::refresh_shader();
@@ -92,7 +107,10 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
     basic.use();
-    passthru.use();
+    camera.bind();
+
+
+    
     p_plane->draw(gl::enums::TRIANGLE_FAN);
     
     /*
