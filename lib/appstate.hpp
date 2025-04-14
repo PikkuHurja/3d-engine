@@ -2,6 +2,7 @@
 
 #include <SDL/SDL.h>
 #include <SDL/Window.h>
+#include <SDL3/SDL_video.h>
 #include <iostream>
 #include <opengl-framework/Wrappers/GLEW.hpp>
 #include <SDL/GL.h>
@@ -34,7 +35,7 @@ struct appstate_t{
                 SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
                 SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 
-            p_window.reset(new SDL::Window{"", {1280, 720}, SDL_WINDOW_OPENGL});
+            p_window.reset(new SDL::Window{"", {1280, 720}, SDL_WINDOW_OPENGL | SDL_WINDOW_INPUT_FOCUS});
             p_gl.reset(new SDL::GL::Context{*p_window});
             glewExperimental = true;
             p_glew.reset(new GLEW());

@@ -72,7 +72,6 @@ struct camera_t : transform, projection{
 
 
     void upload(){
-        std::cout << "Uploading\n";
         gl_ub_camera.upload();
     }
     void refresh(){

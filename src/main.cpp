@@ -16,13 +16,19 @@
 #include "obj/plane.hpp"
 #include "obj/transform.hpp"
 #include "shader/load.hpp"
+#include <SDL3/SDL_error.h>
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_scancode.h>
 #include <barrier>
 #include <exception>
 #include <glm/ext/quaternion_float.hpp>
+#include <glm/ext/quaternion_geometric.hpp>
+#include <glm/ext/quaternion_trigonometric.hpp>
+#include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_float4.hpp>
 #include <glm/ext/vector_int2.hpp>
@@ -53,6 +59,8 @@ gl::program basic{nullptr};
 gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
 
 
+float pitch     = 0;
+float yaw       = 0;
 
 gl::texture tex0;
 gl::texture tex1;
@@ -60,6 +68,22 @@ gl::framebuffer fb0{nullptr};
 gl::framebuffer fb1{nullptr};
 int frequency = 1;
 int seed = 1;
+
+bool should_capture_cursor = true;
+void capture_cursor(appstate_t& state, bool on){
+    should_capture_cursor = on;
+    if(!SDL_SetWindowRelativeMouseMode(*state.core.p_window, on))
+        std::cerr << SDL_GetError() << '\n';
+    if(!SDL_SetWindowMouseGrab(*state.core.p_window, on))
+        std::cerr << SDL_GetError() << '\n';
+}
+void refresh_cursor(appstate_t& state){
+    if(SDL_GetWindowRelativeMouseMode(*state.core.p_window) != should_capture_cursor)
+        SDL_SetWindowMouseGrab(*state.core.p_window, should_capture_cursor);
+    if(SDL_GetWindowMouseGrab(*state.core.p_window) != should_capture_cursor)
+        SDL_SetWindowMouseGrab(*state.core.p_window, should_capture_cursor);
+
+}
 
 glm::ivec2 position{0};
 //using nfn = noise::value_t;
@@ -69,7 +93,6 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     appstate_t& state = *appstate_t::_S_ActiveState;
     state.init();
 
-    std::cout << "Loading...\n";
     std::cout << "Loading...\n";
     basic = shader::load("ass/shaders/basic");
     //passthru = shader::load("ass/shaders/passthru");
@@ -84,23 +107,10 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     p_plane = new gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>;
     p_plane->create(sizeof(verticies)/sizeof(*verticies), 0, verticies);
 
-    camera.create(transform{{0, 0, -1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
+    camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
-    
 
-    /*
-    nfn::refresh_shader();
-    std::cout << "Program: " << nfn::_S_Program->id() << '\n';
-
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<4}, gl::enums::texture::format_storage::STORAGE_R8, 1);
-    fb0.create();
-    fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
-
-    tex1.create(gl::enums::texture::Texture2D, glm::uvec2{tex0.texture_size()}, gl::enums::texture::format_storage::STORAGE_R8, 1);
-    fb1.create();
-    fb1.attach(tex1, gl::enums::framebuffer::COLOR_ATTACHMENT0);
-    */
-
+    capture_cursor(state, true);
     return SDL_APP_CONTINUE;
 }catch(const std::exception& e){
     std::cerr << "Uncaught exception at SDL_AppInit: " << e.what() << '\n'; 
@@ -111,6 +121,8 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
+
+    refresh_cursor(state);
 
     float increment = 0.01;
 
@@ -127,19 +139,18 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
         camera.translation() -= increment*camera.rightward();
     }
     if(keystate[SDL_SCANCODE_RIGHT]){
-        camera.rotate(glm::vec3{0,1,0}, -increment);
+        yaw+=increment;
     }else if(keystate[SDL_SCANCODE_LEFT]){
-        camera.rotate(glm::vec3{0,1,0}, increment);
+        yaw-=increment;
     }
     if(keystate[SDL_SCANCODE_UP]){
-        camera.rotate(glm::vec3{1,0,0}, -increment);
+        pitch+=increment;
     }else if(keystate[SDL_SCANCODE_DOWN]){
-        camera.rotate(glm::vec3{1,0,0}, increment);
+        pitch-=increment;
     }
-    std::cout << "Rotation: " << camera.rotation_euler() << '\n';
+    camera.v_rotation = glm::quat{glm::vec3{pitch, yaw, 0.f}};
 
     camera.refresh();
-
 
     gl::barrier(gl::enums::barriers::UNIFORM);
 
@@ -184,10 +195,22 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
 
 sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
-    //appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
+    appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
     if(event->type == SDL_EVENT_QUIT)
         return SDL_APP_SUCCESS;
 
+    float sens = -0.001;
+    if(event->type == SDL_EVENT_MOUSE_MOTION){
+        yaw+=event->motion.xrel*sens;
+        pitch+=event->motion.yrel*sens;
+    }
+    if(event->type == SDL_EVENT_KEY_DOWN){
+        if(event->key.key == SDLK_ESCAPE){
+            capture_cursor(state, false);
+        }else if(event->key.key == SDLK_L){
+            capture_cursor(state, true);
+        }
+    }
 
 
 

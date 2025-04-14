@@ -54,7 +54,7 @@ struct transform{
         return v_rotation;
     }
     glm::quat& rotate(const glm::vec3& axis, float angle) {
-        v_rotation = glm::angleAxis(angle, axis) * v_rotation;
+        v_rotation = glm::angleAxis(angle, axis)*v_rotation;
         v_rotation = glm::normalize(v_rotation);
         return v_rotation;
     }
