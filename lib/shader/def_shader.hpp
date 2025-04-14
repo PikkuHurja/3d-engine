@@ -17,6 +17,8 @@
 #include <gl/program.hpp>
 #include <fstream>
 #include <appstate.hpp>
+#include <shader/preprocess.hpp>
+#include <shader/load.hpp>
 
 
 
@@ -120,6 +122,30 @@
         PRG_DEFINE_PROPERTY_SET_FUNCTIONS(properties) \
         inline static void refresh_shader(){appstate_t::gl_t::after_gl([](){\
            PRG_PROGRAM_POINTER .reset(new gl::program{PRG_INIT_PRG(shaders)});\
+            PRG_INITIALIZE_PROPERTIES(properties)\
+           refresh_code;\
+        });}\
+        inline static void use(){PRG_PROGRAM_POINTER->use();}\
+        inline static void use(PRG_DEFINE_PROPERTIES_AS_ARGUMENTS(properties)){\
+            use();\
+            PRG_SET_PROPERTIES(properties)\
+        }\
+        inline static void dispatch(glm::uvec3 n){PRG_PROGRAM_POINTER->dispatch(n, PRG_WORKGROUPS);}\
+        inline static void dispatch(glm::uvec2 n){PRG_PROGRAM_POINTER->dispatch(n, PRG_WORKGROUPS);}\
+        inline static void dispatch(uint n)      {PRG_PROGRAM_POINTER->dispatch(n, PRG_WORKGROUPS);}\
+        PRG_TYPE(program_name)() = delete;\
+        ~PRG_TYPE(program_name)() = delete;\
+    };
+
+    //shaders now dont have to specify the type and is just a single path
+#define PRG_DEFINE2(program_name, work_groups, shader_path, properties, refresh_code)\
+    struct PRG_TYPE(program_name) {\
+        inline static std::shared_ptr<gl::program>  PRG_PROGRAM_POINTER;\
+        inline static glm::uvec3                    PRG_WORKGROUPS PRG_INIT_WORKGROUP(work_groups);\
+        PRG_DEFINE_PROPERTIES(properties)   \
+        PRG_DEFINE_PROPERTY_SET_FUNCTIONS(properties) \
+        inline static void refresh_shader(){appstate_t::gl_t::after_gl([](){\
+           PRG_PROGRAM_POINTER .reset(new gl::program{::shader::load(shader_path)});\
             PRG_INITIALIZE_PROPERTIES(properties)\
            refresh_code;\
         });}\

@@ -34,6 +34,7 @@
 
 
 gl::program basic{nullptr};
+gl::program passthru{nullptr};
 gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
 
 gl::texture tex0;
@@ -51,17 +52,16 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     appstate_t& state = *appstate_t::_S_ActiveState;
     state.init();
 
-    std::unordered_map<std::string, std::string> vmap;
     std::cout << "Loading...\n";
-    std::cout << "Loading...\n";
-    basic = shader::load("ass/shaders/basic",  vmap, shader::_DefaultIncludePaths);
+    basic = shader::load("ass/shaders/basic");
+    passthru = shader::load("ass/shaders/passthru");
     std::cout << "Loaded\n";
 
     glm::vec3 verticies[]={
-        {-1, -1, 0}    ,
-        {-1, 1, 0}    ,
-        {1, 1, 0}    ,
-        {1, -1, 0}    ,
+        {-1, -1, 0},
+        {-1, 1, 0},
+        {1, 1, 0},
+        {1, -1, 0},
     };
     p_plane = new gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>;
     p_plane->create(sizeof(verticies)/sizeof(*verticies), 0, verticies);
@@ -92,6 +92,7 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
     basic.use();
+    passthru.use();
     p_plane->draw(gl::enums::TRIANGLE_FAN);
     
     /*

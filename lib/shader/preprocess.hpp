@@ -113,7 +113,9 @@ namespace shader {
                 get_break(charachter);
                 to.push_back(charachter);
                 continue;
-            }else if(charachter == '/'){
+            }
+            /*
+            else if(charachter == '/'){
                 get_break(charachter)
 
                 if(charachter == '/'){
@@ -126,7 +128,9 @@ namespace shader {
                     to.push_back(charachter);
                 }
 
-            }else if(charachter == '$'){
+            }
+            */
+            else if(charachter == '$'){
                 peek_break(charachter);
                 if(charachter == '{'){
                     // variable

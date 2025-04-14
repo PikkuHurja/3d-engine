@@ -145,4 +145,10 @@ namespace shader {
             return load_directory(path, variable_mapping, include_paths);
         return load_compute(path, variable_mapping, include_paths);
     }
+
+        inline gl::program load(const std::filesystem::path& path){
+        std::cout << "load\n";
+        std::unordered_map<std::string, std::string> variable_mapping;
+        return load(path, variable_mapping, _DefaultIncludePaths);
+    }
 }
