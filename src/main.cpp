@@ -196,8 +196,10 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
 sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
-    if(event->type == SDL_EVENT_QUIT)
+    if(event->type == SDL_EVENT_QUIT){
+        capture_cursor(state, false);
         return SDL_APP_SUCCESS;
+    }
 
     float sens = -0.001;
     if(event->type == SDL_EVENT_MOUSE_MOTION){
@@ -222,6 +224,7 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
 
 
 sdl_ext void SDL_AppQuit(void *appstate, SDL_AppResult result)try{
+    std::cout << "Quittinģ\n";
     delete reinterpret_cast<appstate_t*>(appstate);
     appstate_t::_S_ActiveState = nullptr;
 
