@@ -89,7 +89,7 @@ struct gl_mesh_interleaved_t{
     void bind()     {gl_vao.bind();}
     inline static void unbind()   {gl::vertex_array::unbind();}
 
-    inline bool create(uint vertex_count, uint indecie_count, void* vertex_data = nullptr, uint* indecie_data = nullptr){
+    inline void create(uint vertex_count, uint indecie_count, void* vertex_data = nullptr, uint* indecie_data = nullptr){
         if(!gl_vao) gl_vao.create();
         gl_vao.bind();
 

@@ -59,6 +59,7 @@ struct plane_t : gl_mesh_interleaved_t<3, true, true, true, true, true, true>{
                 indecies[indecie_index++] = bottomRight;
             }
         }
+        
         if(indecie_index != indecie_count)
             throw std::runtime_error((std::ostringstream() << "mismatch indecie_index and indecie_count: " << indecie_index << " != " << indecie_count << '\n').str());
 

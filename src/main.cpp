@@ -1,12 +1,18 @@
 #include <GL/glew.h>
 
 #include "appstate.hpp"
+#include "gl/draw_enums.hpp"
 #include "gl/framebuffer_enums.hpp"
+#include "gl/program.hpp"
 #include "gl/texture.hpp"
 #include "gl/framebuffer.hpp"
 #include "gl/texture_enums.hpp"
+#include "gl_mesh.hpp"
+#include "obj/plane.hpp"
+#include "shader/load.hpp"
 #include <SDL3/SDL_keycode.h>
 #include <exception>
+#include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_uint2.hpp>
 #include <iostream>
@@ -27,6 +33,9 @@
 
 
 
+gl::program basic{nullptr};
+gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
+
 gl::texture tex0;
 gl::texture tex1;
 gl::framebuffer fb0{nullptr};
@@ -35,13 +44,29 @@ int frequency = 1;
 int seed = 1;
 
 glm::ivec2 position{0};
-    using nfn = noise::value_t;
+//using nfn = noise::value_t;
 
 sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     appstate_t::_S_ActiveState = *reinterpret_cast<appstate_t**>(appstate) = new appstate_t;
     appstate_t& state = *appstate_t::_S_ActiveState;
     state.init();
 
+    std::unordered_map<std::string, std::string> vmap;
+    std::cout << "Loading...\n";
+    std::cout << "Loading...\n";
+    basic = shader::load("ass/shaders/basic",  vmap, shader::_DefaultIncludePaths);
+    std::cout << "Loaded\n";
+
+    glm::vec3 verticies[]={
+        {-1, -1, 0}    ,
+        {-1, 1, 0}    ,
+        {1, 1, 0}    ,
+        {1, -1, 0}    ,
+    };
+    p_plane = new gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>;
+    p_plane->create(sizeof(verticies)/sizeof(*verticies), 0, verticies);
+
+    /*
     nfn::refresh_shader();
     std::cout << "Program: " << nfn::_S_Program->id() << '\n';
 
@@ -52,6 +77,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     tex1.create(gl::enums::texture::Texture2D, glm::uvec2{tex0.texture_size()}, gl::enums::texture::format_storage::STORAGE_R8, 1);
     fb1.create();
     fb1.attach(tex1, gl::enums::framebuffer::COLOR_ATTACHMENT0);
+    */
 
     return SDL_APP_CONTINUE;
 }catch(const std::exception& e){
@@ -64,7 +90,11 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
+    
+    basic.use();
+    p_plane->draw(gl::enums::TRIANGLE_FAN);
+    
+    /*
     nfn::use();
     //nfn::set_frequency(frequency);
     nfn::set_seed(seed);
@@ -85,6 +115,7 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
     fb0.blit_screen(glm::ivec2{0}, tex0.texture_size(), glm::ivec2{0}, glm::ivec2{ws.x/2, ws.y}, gl::enums::framebuffer::mask::COLOR, gl::enums::framebuffer::NEAREST);
     fb1.blit_screen(glm::ivec2{0}, tex1.texture_size(), glm::ivec2{ws.x/2, 0}, glm::ivec2{ws.x, ws.y}, gl::enums::framebuffer::mask::COLOR, gl::enums::framebuffer::NEAREST);
+    */
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return SDL_APP_CONTINUE;

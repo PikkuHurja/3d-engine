@@ -28,6 +28,7 @@ enum mesh_property{
     HAS_NORMALS,
     HAS_TANGENTS,
     HAS_BITANGENTS,
+    HAS_INDECIES,
     STORES_VERTEX_COUNT,
 };
 
@@ -82,7 +83,7 @@ struct gl_mesh_t{
 
     void draw(gl::enums::drawmode dm) requires(!has_indecies() && stores_vertex_count()) {
         gl_vao.bind();
-        glDrawArrays(dm, vertex_count());
+        glDrawArrays(dm, 0, vertex_count());
     }
     void draw(gl::enums::drawmode dm, size_t indecie_offset = 0) requires(has_indecies() && stores_vertex_count()) {
         gl_vao.bind();
@@ -173,5 +174,6 @@ using gl_mesh = gl_mesh_t<
     mesh_properties_contains<HAS_NORMALS, mesh_properties...>(),
     mesh_properties_contains<HAS_TANGENTS, mesh_properties...>(),
     mesh_properties_contains<HAS_BITANGENTS, mesh_properties...>(),
+    mesh_properties_contains<HAS_INDECIES, mesh_properties...>(),
     mesh_properties_contains<STORES_VERTEX_COUNT, mesh_properties...>()
 >;

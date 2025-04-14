@@ -109,20 +109,21 @@ namespace shader {
             get_break(charachter)
 
             if(charachter == '\\'){
-                is.ignore(1);
+                to.push_back(charachter);
+                get_break(charachter);
+                to.push_back(charachter);
                 continue;
             }else if(charachter == '/'){
-                peek_break(charachter)
+                get_break(charachter)
 
                 if(charachter == '/'){
-                    is.ignore(1);
                     _preprocess::skip_until_nl(is);
+                    to.push_back('\n');
                 }else if (charachter == '*'){
-                    is.ignore(1);
                     _preprocess::skip_until_bc_end(is);
                 }else{
+                    to.push_back('/');
                     to.push_back(charachter);
-                    continue;
                 }
 
             }else if(charachter == '$'){
@@ -155,6 +156,8 @@ namespace shader {
                     if(it->second)
                         it->second(is, to, variable_mapping, include_paths);
                 }
+            }else{
+                to.push_back(charachter);
             }
 
         } while(1);
