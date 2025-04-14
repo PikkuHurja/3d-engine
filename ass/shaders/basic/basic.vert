@@ -21,8 +21,8 @@ layout(std140, binding = 0) uniform ubCamera
     mat4 perspective; // PERSPECTIVE
     mat4 inverse_perspective; // INVERSE_PERSPECTIVE
 
-    mat4 view_perspective; // VIEW_PERSPECTIVE
-    mat4 inverse_view_perspective; // INVERSE_VIEW_PERSPECTIVE
+    mat4 perspective_view; // VIEW_PERSPECTIVE
+    mat4 inverse_perspective_view; // INVERSE_VIEW_PERSPECTIVE
 };
 
 
@@ -51,10 +51,10 @@ void main(){
 
         ////////////// POSITION //////////////
 
-    mat4 MPV = model_matrix * view_perspective;
+    mat4 MPV = model_matrix * perspective_view;
     vec4 wpos = MPV * vec4(aVertex, 1.f);
     WorldPosition = wpos.xyz;
-    gl_Position = MPV * vec4(aVertex, 1.f);
+    gl_Position = wpos;
 
 
         ////////////// NORMAL MAPPING //////////////

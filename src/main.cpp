@@ -11,12 +11,16 @@
 #include "gl/texture.hpp"
 #include "gl/framebuffer.hpp"
 #include "gl/texture_enums.hpp"
+#include "gl/synchronization.hpp"
 #include "gl_mesh.hpp"
 #include "obj/plane.hpp"
 #include "obj/transform.hpp"
 #include "shader/load.hpp"
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_scancode.h>
+#include <barrier>
 #include <exception>
 #include <glm/ext/quaternion_float.hpp>
 #include <glm/ext/vector_float3.hpp>
@@ -66,6 +70,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     state.init();
 
     std::cout << "Loading...\n";
+    std::cout << "Loading...\n";
     basic = shader::load("ass/shaders/basic");
     //passthru = shader::load("ass/shaders/passthru");
     std::cout << "Loaded\n";
@@ -80,6 +85,8 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     p_plane->create(sizeof(verticies)/sizeof(*verticies), 0, verticies);
 
     camera.create(transform{{0, 0, -1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
+
+    
 
     /*
     nfn::refresh_shader();
@@ -104,6 +111,38 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
+
+    float increment = 0.01;
+
+    const bool* keystate = SDL_GetKeyboardState(nullptr);
+
+    if(keystate[SDL_SCANCODE_W]){
+        camera.translation() += increment*camera.forward();
+    }else if(keystate[SDL_SCANCODE_S]){
+        camera.translation() -= increment*camera.forward();
+    }
+    if(keystate[SDL_SCANCODE_D]){
+        camera.translation() += increment*camera.rightward();
+    }else if(keystate[SDL_SCANCODE_A]){
+        camera.translation() -= increment*camera.rightward();
+    }
+    if(keystate[SDL_SCANCODE_RIGHT]){
+        camera.rotate(glm::vec3{0,1,0}, -increment);
+    }else if(keystate[SDL_SCANCODE_LEFT]){
+        camera.rotate(glm::vec3{0,1,0}, increment);
+    }
+    if(keystate[SDL_SCANCODE_UP]){
+        camera.rotate(glm::vec3{1,0,0}, -increment);
+    }else if(keystate[SDL_SCANCODE_DOWN]){
+        camera.rotate(glm::vec3{1,0,0}, increment);
+    }
+    std::cout << "Rotation: " << camera.rotation_euler() << '\n';
+
+    camera.refresh();
+
+
+    gl::barrier(gl::enums::barriers::UNIFORM);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
     basic.use();
@@ -150,38 +189,6 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
         return SDL_APP_SUCCESS;
 
 
-    if(event->type == SDL_EVENT_KEY_DOWN){
-        if(event->key.key == SDLK_W){
-            frequency++;
-            std::cout << "frequency: " << frequency << '\n';
-        }else if(event->key.key == SDLK_S){
-            frequency--;
-            std::cout << "frequency: " << frequency << '\n';
-        }
-
-        if(event->key.key == SDLK_D){
-            seed++;
-            std::cout << "seed: " << seed << '\n';
-        }else if(event->key.key == SDLK_A){
-            seed--;
-            std::cout << "seed: " << seed << '\n';
-        }
-
-
-        if(event->key.key == SDLK_UP){
-            position.y++;
-            std::cout << "position: " << position.x << ", " << position.y << '\n';
-        }else if(event->key.key == SDLK_DOWN){
-            position.y--;
-            std::cout << "position: " << position.x << ", " << position.y << '\n';
-        }else if(event->key.key == SDLK_RIGHT){
-            position.x++;
-            std::cout << "position: " << position.x << ", " << position.y << '\n';
-        }else if(event->key.key == SDLK_LEFT){
-            position.x--;
-            std::cout << "position: " << position.x << ", " << position.y << '\n';
-        }
-    }
 
 
     return SDL_APP_CONTINUE;

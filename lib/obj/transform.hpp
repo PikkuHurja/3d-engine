@@ -4,6 +4,7 @@
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_float.hpp>
+#include <glm/ext/quaternion_geometric.hpp>
 #include <glm/ext/quaternion_trigonometric.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -42,9 +43,23 @@ struct transform{
         ////////////////////////////// APPEND / ACCUMILATE //////////////////////////////
 
     glm::vec3& translate(const glm::vec3& v){return v_translation += v;}
-    glm::quat& rotate(const glm::quat& v){return v_rotation = v*v_rotation;}
-    glm::quat& rotate(const glm::vec3& euler){return v_rotation = glm::quat{euler} * v_rotation;}
-    glm::quat& rotate(const glm::vec3& axis, float angle) {return v_rotation = glm::angleAxis(angle, axis) * v_rotation;} 
+    glm::quat& rotate(const glm::quat& v){
+        v_rotation = v*v_rotation;
+        v_rotation = glm::normalize(v_rotation);
+        return v_rotation;
+    }
+    glm::quat& rotate(const glm::vec3& euler){
+        v_rotation = glm::quat{euler} * v_rotation;
+        v_rotation = glm::normalize(v_rotation);
+        return v_rotation;
+    }
+    glm::quat& rotate(const glm::vec3& axis, float angle) {
+        v_rotation = glm::angleAxis(angle, axis) * v_rotation;
+        v_rotation = glm::normalize(v_rotation);
+        return v_rotation;
+    }
+    
+     
     glm::vec3& scale_by(const glm::vec3& v){return v_scale *= v;}
     glm::vec3& scale_by(const float& v){return v_scale *= v;}
 

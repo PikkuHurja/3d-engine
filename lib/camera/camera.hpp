@@ -6,13 +6,17 @@
 #include <gl/uniform_buffer.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/quaternion_common.hpp>
 #include <glm/ext/quaternion_float.hpp>
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <iostream>
 
 #include "projection.hpp"
 
@@ -67,15 +71,19 @@ struct camera_t : transform, projection{
     void bind()                     {gl_ub_camera.bind();}
 
 
-    void upload(){gl_ub_camera.upload();}
+    void upload(){
+        std::cout << "Uploading\n";
+        gl_ub_camera.upload();
+    }
     void refresh(){
         if(calculate())
             upload();
     }
+
         //returns if changed
     bool calculate(bool override = false){
-        bool transform_changed = gl_transform == static_cast<transform&>(*this);
-        bool projection_changed = gl_projection == static_cast<projection&>(*this);
+        bool transform_changed = gl_transform != static_cast<transform&>(*this);
+        bool projection_changed = gl_projection != static_cast<projection&>(*this);
 
         if(transform_changed || override){
 
@@ -88,9 +96,8 @@ struct camera_t : transform, projection{
                 gl_ub_camera.set<DIRECTION_UP_NORMALIZED>       (transform::upward()    );
                 gl_ub_camera.set<DIRECTION_RIGHT_NORMALIZED>    (transform::rightward() );
             }
-
-            gl_ub_camera.set<VIEW>          (transform::model_matrix());
-            gl_ub_camera.set<VIEW_INVERSE>  (glm::inverse(gl_ub_camera.get<VIEW>()));
+            gl_ub_camera.set<VIEW_INVERSE>  (model_matrix());
+            gl_ub_camera.set<VIEW>          (glm::inverse(gl_ub_camera.get<VIEW_INVERSE>()));
         }
         if(projection_changed || override){
             gl_ub_camera.set<PROJECTION>(projection::projection_matrix());
