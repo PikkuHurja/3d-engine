@@ -28,7 +28,7 @@ void main() {
         vec3 p3 = gl_in[3].gl_Position.xyz;
         vec3 center = (p0 + p1 + p2 + p3) * 0.25;
 
-        float dist = distance(camera_position, center);
+        float dist      = distance(camera_position, center);
         float tessLevel = clamp(100.0 / dist, 1.0, 10.0); // tweak as needed
 
         gl_TessLevelOuter[0] = tessLevel;

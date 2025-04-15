@@ -1,6 +1,6 @@
 #version 460 core
 
-layout(quads, equal_spacing, ccw) in;
+layout(quads, fractional_odd_spacing, ccw) in;
 
 layout(std140, binding = 0) uniform ubCamera {
     vec3 camera_position;
@@ -16,7 +16,7 @@ layout(std140, binding = 0) uniform ubCamera {
 };
 
 uniform sampler2D heightmap;
-uniform float terrain_scale =   32; // vertical scale of height
+uniform float terrain_scale =   0.3; // vertical scale of height
 uniform float tile_size     =    32; // how large is a single patch in world units
 
 out vec2 fragTexCoord;

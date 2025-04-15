@@ -145,13 +145,15 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<10}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<9}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex0.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_NEAREST);
+    tex0.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    noise::perlin_t::refresh_shader();
-    noise::perlin_t::use();
-    noise::perlin_t::set_seed(0);
+    noise::value_t::refresh_shader();
+    noise::value_t::use();
+    noise::value_t::set_seed(0);
     tex0.bind_base(0, GL_WRITE_ONLY);
-    noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
+    noise::value_t::dispatch(glm::uvec2{tex0.texture_size()});
 
     //capture_cursor(state, true);
     return SDL_APP_CONTINUE;
