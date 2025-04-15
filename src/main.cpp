@@ -115,20 +115,12 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 }
 
 
-
-sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
-    appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
-    state.time.update();
-    double dt = state.time.delta_timef();
-    refresh_cursor(state);
-
+void update_camera(){
     const bool* keystate = SDL_GetKeyboardState(nullptr);
-
+    const float dt = appstate_t::_S_ActiveState->time.delta_timef();
     const float slow = 1 * dt;
     const float fast = 5 * dt;
-
     float movement = keystate[SDL_SCANCODE_LSHIFT] ? fast : slow;
-
     if(keystate[SDL_SCANCODE_W]){
         camera.translation() += movement*camera.forward();
     }else if(keystate[SDL_SCANCODE_S]){
@@ -140,42 +132,28 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
         camera.translation() += movement*camera.leftward();
     }
 
+    if(keystate[SDL_SCANCODE_SPACE]){
+        camera.translation() += movement*camera.upward();
+    }else if(keystate[SDL_SCANCODE_C]){
+        camera.translation() += movement*camera.downward();
+    }
     camera.v_rotation = glm::quat{glm::vec3{pitch, yaw, 0.f}};
     camera.refresh();
+}
 
-    gl::barrier(gl::enums::barriers::UNIFORM);
+
+sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
+    appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
+    state.time.update();
+    refresh_cursor(state);
+    update_camera();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
     basic.use();
     camera.bind();
-
-
-    
     p_plane->draw(gl::enums::TRIANGLE_FAN);
     
-    /*
-    nfn::use();
-    //nfn::set_frequency(frequency);
-    nfn::set_seed(seed);
-    nfn::set_chunk_position(position);
-    tex0.bind_base(0, GL_WRITE_ONLY);
-    nfn::dispatch(glm::uvec2{tex0.texture_size()});
-
-
-    nfn::use();
-    //nfn::set_frequency(frequency);
-    nfn::set_seed(seed);
-    nfn::set_chunk_position(position+glm::ivec2(1, 0));
-    tex1.bind_base(0, GL_WRITE_ONLY);
-    nfn::dispatch(glm::uvec2{tex0.texture_size()});
-
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-    auto ws = state.core.p_window->GetWindowSize();
-
-    fb0.blit_screen(glm::ivec2{0}, tex0.texture_size(), glm::ivec2{0}, glm::ivec2{ws.x/2, ws.y}, gl::enums::framebuffer::mask::COLOR, gl::enums::framebuffer::NEAREST);
-    fb1.blit_screen(glm::ivec2{0}, tex1.texture_size(), glm::ivec2{ws.x/2, 0}, glm::ivec2{ws.x, ws.y}, gl::enums::framebuffer::mask::COLOR, gl::enums::framebuffer::NEAREST);
-    */
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return SDL_APP_CONTINUE;
@@ -193,10 +171,13 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
     }
 
     float sens = -0.001;
+
+        //rotate camere
     if(event->type == SDL_EVENT_MOUSE_MOTION){
         yaw+=event->motion.xrel*sens;
         pitch+=event->motion.yrel*sens;
     }
+        //lock cursor
     if(event->type == SDL_EVENT_KEY_DOWN){
         if(event->key.key == SDLK_ESCAPE){
             capture_cursor(state, false);

@@ -1,4 +1,5 @@
 #pragma once
+#include "appstate.hpp"
 #include "gl/shader_spec.hpp"
 #include "obj/transform.hpp"
 #include <cmath>
@@ -17,6 +18,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <iostream>
+#include <mutex>
 
 #include "projection.hpp"
 
@@ -63,8 +65,12 @@ struct camera_t : transform, projection{
         static_cast<projection&>(*this) = p;
         calculate(true);
         
-        if(!gl_ub_camera)
+        if(!gl_ub_camera){
+            std::lock_guard l{appstate_t::_S_ActiveState->gl.opengl_mutex()};
             gl_ub_camera.create(gl::shader_spec::ubCamera);
+        }else{
+            upload();
+        }
 
     }
 
@@ -72,6 +78,7 @@ struct camera_t : transform, projection{
 
 
     void upload(){
+        std::lock_guard l{appstate_t::_S_ActiveState->gl.opengl_mutex()};
         gl_ub_camera.upload();
     }
     void refresh(){
