@@ -3,6 +3,7 @@
 #include <SDL/SDL.h>
 #include <SDL/Window.h>
 #include <SDL3/SDL_video.h>
+#include <chrono>
 #include <iostream>
 #include <opengl-framework/Wrappers/GLEW.hpp>
 #include <SDL/GL.h>
@@ -132,6 +133,25 @@ struct appstate_t{
     struct render_t{
         void init() const{}
     } render;
+
+    struct time_t{
+        using c = std::chrono::steady_clock;
+        using tp = c::time_point;
+        using d = c::duration;
+        tp begin                    = c::now();
+        tp last_update              = begin;
+        tp last_fixed_update        = begin;
+        tp current_update           = begin;
+
+        tp now() const {return current_update;}
+        d delta_time() const {return current_update - last_update;}
+        double delta_timef() const {return std::chrono::duration_cast<std::chrono::duration<double>>(current_update - last_update).count();}
+
+        void update(){
+            last_update = current_update;
+            current_update = c::now();
+        }
+    } time;
 
     void init(){
         core.init();

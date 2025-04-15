@@ -72,6 +72,9 @@ struct transform{
     glm::vec3 rightward()   const { return v_rotation * glm::vec3(1.0f, 0.0f, 0.0f); }
     glm::vec3 upward()      const { return v_rotation * glm::vec3(0.0f, 1.0f, 0.0f); }
 
+    glm::vec3 backward()    const { return -forward();   }
+    glm::vec3 leftward()    const { return -rightward(); }
+    glm::vec3 downward()    const { return -upward();    }
 
     inline static glm::mat4 model_matrix(const glm::vec3& v_translation, const glm::quat& v_rotation, const glm::vec3& v_scale){
         auto model = glm::translate(glm::mat4(1), v_translation);

@@ -118,35 +118,29 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
-
+    state.time.update();
+    double dt = state.time.delta_timef();
     refresh_cursor(state);
-
-    float increment = 0.01;
 
     const bool* keystate = SDL_GetKeyboardState(nullptr);
 
+    const float slow = 1 * dt;
+    const float fast = 5 * dt;
+
+    float movement = keystate[SDL_SCANCODE_LSHIFT] ? fast : slow;
+
     if(keystate[SDL_SCANCODE_W]){
-        camera.translation() += increment*camera.forward();
+        camera.translation() += movement*camera.forward();
     }else if(keystate[SDL_SCANCODE_S]){
-        camera.translation() -= increment*camera.forward();
+        camera.translation() += movement*camera.backward();
     }
     if(keystate[SDL_SCANCODE_D]){
-        camera.translation() += increment*camera.rightward();
+        camera.translation() += movement*camera.rightward();
     }else if(keystate[SDL_SCANCODE_A]){
-        camera.translation() -= increment*camera.rightward();
+        camera.translation() += movement*camera.leftward();
     }
-    if(keystate[SDL_SCANCODE_RIGHT]){
-        yaw+=increment;
-    }else if(keystate[SDL_SCANCODE_LEFT]){
-        yaw-=increment;
-    }
-    if(keystate[SDL_SCANCODE_UP]){
-        pitch+=increment;
-    }else if(keystate[SDL_SCANCODE_DOWN]){
-        pitch-=increment;
-    }
-    camera.v_rotation = glm::quat{glm::vec3{pitch, yaw, 0.f}};
 
+    camera.v_rotation = glm::quat{glm::vec3{pitch, yaw, 0.f}};
     camera.refresh();
 
     gl::barrier(gl::enums::barriers::UNIFORM);
