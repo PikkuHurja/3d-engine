@@ -143,11 +143,12 @@ struct appstate_t{
         tp last_fixed_update        = begin;
         tp current_update           = begin;
 
-        tp now() const {return current_update;}
-        d delta_time() const {return current_update - last_update;}
-        double delta_timef() const {return std::chrono::duration_cast<std::chrono::duration<double>>(current_update - last_update).count();}
+        inline tp now() const {return current_update;}
+        inline d delta_time() const {return current_update - last_update;}
+        inline float delta_timef() const {return std::chrono::duration_cast<std::chrono::duration<float>>(current_update - last_update).count();}
+        inline double delta_timed() const {return std::chrono::duration_cast<std::chrono::duration<double>>(current_update - last_update).count();}
 
-        void update(){
+        inline void update(){
             last_update = current_update;
             current_update = c::now();
         }
