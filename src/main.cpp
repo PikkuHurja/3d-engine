@@ -6,13 +6,17 @@
 #include "camera/perspective.hpp"
 #include "camera/projection.hpp"
 #include "draw/draw.hpp"
+#include "gl/buffer.hpp"
+#include "gl/buffer_enums.hpp"
 #include "gl/draw_enums.hpp"
 #include "gl/framebuffer_enums.hpp"
 #include "gl/program.hpp"
+#include "gl/shader_spec.hpp"
 #include "gl/texture.hpp"
 #include "gl/framebuffer.hpp"
 #include "gl/texture_enums.hpp"
 #include "gl/synchronization.hpp"
+#include "gl/vertex_array.hpp"
 #include "gl_mesh.hpp"
 #include "obj/plane.hpp"
 #include "obj/transform.hpp"
@@ -25,6 +29,7 @@
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_scancode.h>
 #include <barrier>
+#include <cstddef>
 #include <exception>
 #include <glm/ext/quaternion_float.hpp>
 #include <glm/ext/quaternion_geometric.hpp>
@@ -54,11 +59,13 @@
 
 
 camera_t camera{nullptr};
-plane_t*  p_plane{nullptr};
+gl::vertex_array vao{nullptr};
+gl::typed_buffer_t<gl::enums::buffer::ARRAY_BUFFER> vbo{nullptr};
+size_t vertex_count = 0;
+gl::program terrain_tess{nullptr};
 
 //g/l::program basic{nullptr}/;
 //gl::program terrain{nullptr};
-gl::program terrain_tess{nullptr};
 //gl::program passthru{nullptr};
 //gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
 
@@ -101,8 +108,40 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     //passthru = shader::load("ass/shaders/passthru");
     std::cout << "Loaded\n";
 
-    p_plane = new plane_t;
-    p_plane->create(glm::vec3{0}, glm::vec2{32}, glm::uvec2{32});
+    //p_plane = new plane_t;
+    //p_plane->create(glm::vec3{0}, glm::vec2{32}, glm::uvec2{32});
+
+    vao.create();
+    vao.bind();
+    vbo.create();
+    {
+        std::vector<glm::vec3> verts;
+        int gridSize = 64;
+
+        for (int z = 0; z <= gridSize; ++z) {
+            for (int x = 0; x <= gridSize; ++x) {
+                float x0 = ((float)x     / gridSize);
+                float x1 = ((float)(x+1) / gridSize);
+                float z0 = ((float)z     / gridSize);
+                float z1 = ((float)(z+1) / gridSize);
+
+                // Define 1 quad (patch of 4 vertices)
+                verts.push_back(glm::vec3(x0, 0.f, z0)); // bottom-left
+                verts.push_back(glm::vec3(x1, 0.f, z0)); // bottom-right
+                verts.push_back(glm::vec3(x1, 0.f, z1)); // top-right
+                verts.push_back(glm::vec3(x0, 0.f, z1)); // top-left
+            }
+        }
+        vertex_count = verts.size();
+        vbo.bind();
+        vbo.data(verts.data(), sizeof(glm::vec3) * verts.size(), gl::enums::buffer::STATIC_DRAW);
+
+        vbo.attribute(gl::shader_spec::aVertex, 3, gl::enums::buffer::FLOAT);
+        vao.enable_attribute(gl::shader_spec::aVertex);
+        vao.unbind();
+        vbo.unbind();
+
+    }
 
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
@@ -161,10 +200,9 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     terrain_tess.use();
     camera.bind();
     tex0.bind(0);
-    p_plane->bind();
-    gl::draw_indecies(gl::enums::drawmode::PATCHES, *p_plane->v_indecie_count);
-    std::cout << "v_indecie_count: " << *p_plane->v_indecie_count << '\n';
-    std::cout << "v_vertex_count: " << *p_plane->v_vertex_count << '\n';
+    glPatchParameteri(GL_PATCH_VERTICES, 4);
+    vao.bind();
+    gl::draw_one(gl::enums::PATCHES, 0, vertex_count);
     
 
     SDL::GL::SwapWindow(*state.core.p_window);

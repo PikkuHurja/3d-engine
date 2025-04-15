@@ -97,7 +97,6 @@ namespace shader {
 
         std::string output;
         preprocess(path, output, variable_mapping, include_paths);
-        std::cout << "Source:\n\e[1m" << output << "\e[22m\n";
         
         return gl::shader{
             ext_type_to_shader_type[ext_type],
@@ -133,8 +132,6 @@ namespace shader {
 
 
     inline gl::program load_compute(const std::filesystem::path& path, std::unordered_map<std::string, std::string>& variable_mapping, std::vector<std::filesystem::path> &include_paths){
-        std::cout << "load_compute\n";
-
         if(std::filesystem::is_directory(path))
             load_directory(path, variable_mapping,include_paths);
 
@@ -142,14 +139,12 @@ namespace shader {
     }
 
     inline gl::program load(const std::filesystem::path& path, std::unordered_map<std::string, std::string>& variable_mapping, std::vector<std::filesystem::path>& include_paths ){
-        std::cout << "load\n";
         if(std::filesystem::is_directory(path)) //only compute shaders may be alone
             return load_directory(path, variable_mapping, include_paths);
         return load_compute(path, variable_mapping, include_paths);
     }
 
         inline gl::program load(const std::filesystem::path& path){
-        std::cout << "load\n";
         std::unordered_map<std::string, std::string> variable_mapping;
         return load(path, variable_mapping, _DefaultIncludePaths);
     }

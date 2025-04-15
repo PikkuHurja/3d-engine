@@ -1,44 +1,45 @@
-#version 450 core
+#version 460 core
 
 layout(quads, equal_spacing, ccw) in;
 
-uniform sampler2D heightmap;
-out vec2 texCoord;
-
-layout(std140, binding = 0) uniform ubCamera
-{
-    vec3 camera_position; // POSITION
-    vec3 camera_forward; // DIRECTION_FORWARD_NORMALIZED
-    vec3 camera_up; // DIRECTION_UP_NORMALIZED
-    vec3 camera_right; // DIRECTION_RIGHT_NORMALIZED
-
-    mat4 view; // VIEW
-    mat4 inverse_view; // INVERSE_VIEW
-
-    mat4 perspective; // PERSPECTIVE
-    mat4 inverse_perspective; // INVERSE_PERSPECTIVE
-
-    mat4 perspective_view; // PERSPECTIVE_VIEW
-    mat4 inverse_perspective_view; // INVERSE_PERSPECTIVE_VIEW
+layout(std140, binding = 0) uniform ubCamera {
+    vec3 camera_position;
+    vec3 camera_forward;
+    vec3 camera_up;
+    vec3 camera_right;
+    mat4 view;
+    mat4 inverse_view;
+    mat4 perspective;
+    mat4 inverse_perspective;
+    mat4 perspective_view;
+    mat4 inverse_perspective_view;
 };
 
+uniform sampler2D heightmap;
+uniform float terrain_scale =   32; // vertical scale of height
+uniform float tile_size     =    32; // how large is a single patch in world units
+
+out vec2 fragTexCoord;
 
 void main() {
-    // Get interpolated position
-    float u = gl_TessCoord.x;
-    float v = gl_TessCoord.y;
-    
+    vec3 p0 = gl_in[0].gl_Position.xyz;
+    vec3 p1 = gl_in[1].gl_Position.xyz;
+    vec3 p2 = gl_in[2].gl_Position.xyz;
+    vec3 p3 = gl_in[3].gl_Position.xyz;
+
+    vec2 uv = gl_TessCoord.xy;
+
     // Bilinear interpolation
-    vec4 p0 = mix(gl_in[0].gl_Position, gl_in[1].gl_Position, u);
-    vec4 p1 = mix(gl_in[3].gl_Position, gl_in[2].gl_Position, u);
-    vec4 position = mix(p0, p1, v);
-    
-    // Get texture coordinate
-    texCoord = vec2(u, v);
-    
-    // Sample heightmap
-    float height = texture(heightmap, texCoord).r;
-    position.y = height;
-    
-    gl_Position = perspective_view * position;
+    vec3 pos = mix(mix(p0, p1, uv.x), mix(p3, p2, uv.x), uv.y);
+
+
+    // Map x,z to heightmap UV
+    vec2 texUV = pos.xz * 0.5 + 0.5; // assuming -1..1 range
+    float height = texture(heightmap, texUV).r;
+
+    pos.y   = height * terrain_scale;
+    pos.xz *= tile_size;
+
+    gl_Position = perspective_view * vec4(pos, 1.0);
+    fragTexCoord = texUV;
 }
