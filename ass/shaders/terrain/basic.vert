@@ -8,11 +8,8 @@ layout(location = 3) in vec3 aTangent;
 layout(location = 4) in vec3 aBitangent;
 
 
-uniform sampler2D height_map;
 
-
-layout(std140, binding = 0) uniform ubCamera
-{
+layout(std140, binding = 0) uniform ubCamera{
     vec3 camera_position; // POSITION
     vec3 camera_forward; // DIRECTION_FORWARD_NORMALIZED
     vec3 camera_up; // DIRECTION_UP_NORMALIZED
@@ -29,9 +26,11 @@ layout(std140, binding = 0) uniform ubCamera
 };
 
 
-uniform mat4 model_matrix = mat4(1.f);
-uniform vec2 size = vec2(32);
-uniform vec2 height_minmax = vec2(-4, 4);
+uniform sampler2D height_map;
+uniform mat4 model_matrix   = mat4(1.f);
+uniform vec2 height_minmax  = vec2(-8, 8);
+uniform vec2 size           = vec2(32);
+
 
 out flat uint   InstanceIndex;
 out vec3        LocalPosition;
@@ -48,14 +47,14 @@ out mat3 TBN; // TBN Matrix for normal mapping
 
 void main(){
         ////////////// POSITION //////////////
-    float norm_offset = texture(height_map, (aVertex.xz+0.5)/size).x;
+    float norm_offset = texture(height_map, aVertex.xz+vec2(1.f/textureSize(height_map, 0))).x;
     float offset = (norm_offset*(height_minmax.y-height_minmax.x))+ height_minmax.x;
-    LocalPosition = aVertex+vec3(0,offset, 0);
+    LocalPosition = aVertex*vec3(size.x, 1, size.y)+vec3(0,offset, 0);
 
     mat4 MPV = model_matrix * perspective_view;
     vec4 world_position = MPV * vec4(LocalPosition, 1.f);
-    WorldPosition   = world_position.xyz;
-    gl_Position     = world_position;
+    WorldPosition   =   world_position.xyz;
+    gl_Position     =   world_position;
 
 
         ////////////// NORMAL MAPPING //////////////

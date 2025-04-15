@@ -26,7 +26,9 @@ struct plane_t : gl_mesh_interleaved_t<3, true, true, true, true, true, true>{
         glm::vec3 bitangent;
     };
 
-    
+    plane_t(std::nullptr_t):mesh_t{nullptr}{}
+    plane_t(glm::vec3 position, glm::vec2 size, glm::uvec2 vertex_count):plane_t{nullptr}{create(position, size, vertex_count);}
+
     void create(glm::vec3 position, glm::vec2 size, glm::uvec2 vertex_count){ //verticies, per axis
         std::unique_ptr<verticie[]> verticies   = std::make_unique<verticie[]>(vertex_count.x*vertex_count.y);
         size_t indecie_count                    = (vertex_count.x-1)*(vertex_count.y-1)*6;
@@ -68,7 +70,7 @@ struct plane_t : gl_mesh_interleaved_t<3, true, true, true, true, true, true>{
         mesh_t::create(vertex_count.x*vertex_count.y, indecie_count, verticies.get(), indecies.get());
     }
 
-    void draw(){
+    void draw_indecies(){
         mesh_t::bind();
         gl::draw_indecies(gl::enums::TRIANGLES, *v_indecie_count);
         mesh_t::unbind();
@@ -78,5 +80,5 @@ struct plane_t : gl_mesh_interleaved_t<3, true, true, true, true, true, true>{
 
 template<>
 inline void gl::draw_indecies<plane_t>(plane_t& plane){
-    plane.draw();
+    plane.draw_indecies();
 }

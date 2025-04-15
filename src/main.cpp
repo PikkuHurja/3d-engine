@@ -28,6 +28,7 @@
 #include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_scancode.h>
+#include <algorithm>
 #include <barrier>
 #include <cstddef>
 #include <exception>
@@ -59,16 +60,61 @@
 
 
 camera_t camera{nullptr};
+/*
 gl::vertex_array vao{nullptr};
 gl::typed_buffer_t<gl::enums::buffer::ARRAY_BUFFER> vbo{nullptr};
 size_t vertex_count = 0;
-gl::program terrain_tess{nullptr};
+
+    gl::program terrain_tess{nullptr};
+    terrain_tess = shader::load("ass/shaders/terrain-tess");
+    vao.create();
+    vao.bind();
+    vbo.create();
+    {
+        std::vector<glm::vec3> verts;
+        int gridSize = 64;
+
+        for (int z = 0; z <= gridSize; ++z) {
+            for (int x = 0; x <= gridSize; ++x) {
+                float x0 = ((float)x     / gridSize);
+                float x1 = ((float)(x+1) / gridSize);
+                float z0 = ((float)z     / gridSize);
+                float z1 = ((float)(z+1) / gridSize);
+
+                // Define 1 quad (patch of 4 vertices)
+                verts.push_back(glm::vec3(x0, 0.f, z0)); // bottom-left
+                verts.push_back(glm::vec3(x1, 0.f, z0)); // bottom-right
+                verts.push_back(glm::vec3(x1, 0.f, z1)); // top-right
+                verts.push_back(glm::vec3(x0, 0.f, z1)); // top-left
+            }
+        }
+        vertex_count = verts.size();
+        vbo.bind();
+        vbo.data(verts.data(), sizeof(glm::vec3) * verts.size(), gl::enums::buffer::STATIC_DRAW);
+
+        vbo.attribute(gl::shader_spec::aVertex, 3, gl::enums::buffer::FLOAT);
+        vao.enable_attribute(gl::shader_spec::aVertex);
+        vao.unbind();
+        vbo.unbind();
+    }
+
+    terrain_tess.use();
+    camera.bind();
+    tex0.bind(0);
+    glPatchParameteri(GL_PATCH_VERTICES, 4);
+    vao.bind();
+    gl::draw_one(gl::enums::PATCHES, 0, vertex_count);
+
+*/
+
+gl::program terrain{nullptr};
 
 //g/l::program basic{nullptr}/;
-//gl::program terrain{nullptr};
 //gl::program passthru{nullptr};
 //gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
-
+    //plane levels of detail
+plane_t* a_plane[4];
+int lod = 0;
 
 float pitch     = 0;
 float yaw       = 0;
@@ -102,58 +148,37 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
     std::cout << "Loading...\n";
     //basic = shader::load("ass/shaders/basic");
-    //terrain = shader::load("ass/shaders/terrain");
-    terrain_tess = shader::load("ass/shaders/terrain-tess");
-
+    terrain = shader::load("ass/shaders/terrain");
     //passthru = shader::load("ass/shaders/passthru");
     std::cout << "Loaded\n";
 
-    //p_plane = new plane_t;
-    //p_plane->create(glm::vec3{0}, glm::vec2{32}, glm::uvec2{32});
+    a_plane[0] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<10});
+    a_plane[1] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<9});
+    a_plane[2] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<8});
+    a_plane[3] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<7});
+    
 
-    vao.create();
-    vao.bind();
-    vbo.create();
-    {
-        std::vector<glm::vec3> verts;
-        int gridSize = 64;
-
-        for (int z = 0; z <= gridSize; ++z) {
-            for (int x = 0; x <= gridSize; ++x) {
-                float x0 = ((float)x     / gridSize);
-                float x1 = ((float)(x+1) / gridSize);
-                float z0 = ((float)z     / gridSize);
-                float z1 = ((float)(z+1) / gridSize);
-
-                // Define 1 quad (patch of 4 vertices)
-                verts.push_back(glm::vec3(x0, 0.f, z0)); // bottom-left
-                verts.push_back(glm::vec3(x1, 0.f, z0)); // bottom-right
-                verts.push_back(glm::vec3(x1, 0.f, z1)); // top-right
-                verts.push_back(glm::vec3(x0, 0.f, z1)); // top-left
-            }
-        }
-        vertex_count = verts.size();
-        vbo.bind();
-        vbo.data(verts.data(), sizeof(glm::vec3) * verts.size(), gl::enums::buffer::STATIC_DRAW);
-
-        vbo.attribute(gl::shader_spec::aVertex, 3, gl::enums::buffer::FLOAT);
-        vao.enable_attribute(gl::shader_spec::aVertex);
-        vao.unbind();
-        vbo.unbind();
-
-    }
 
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<9}, gl::enums::texture::format_storage::STORAGE_R8, 1);
-    tex0.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_NEAREST);
-    tex0.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_NEAREST);
+    fb0.create();
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<12}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex0.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_LINEAR);
+    tex0.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
+    fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
 
-    noise::value_t::refresh_shader();
-    noise::value_t::use();
-    noise::value_t::set_seed(0);
+    noise::perlin_t::refresh_shader();
+    noise::perlin_t::use();
+    noise::perlin_t::set_seed(0);
     tex0.bind_base(0, GL_WRITE_ONLY);
-    noise::value_t::dispatch(glm::uvec2{tex0.texture_size()});
+    noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
+    gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
+
+    fb1.create();
+    tex1.create(gl::enums::texture::Texture2D, glm::uvec2{1<<6}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    fb1.attach(tex1, gl::enums::framebuffer::COLOR_ATTACHMENT0);
+
+    fb0.blit(fb1, glm::ivec2{0}, glm::ivec2{tex0.texture_size()}, glm::ivec2{0}, glm::ivec2{tex1.texture_size()});
 
     //capture_cursor(state, true);
     return SDL_APP_CONTINUE;
@@ -199,12 +224,11 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
     glEnable(GL_DEPTH_TEST);
-    terrain_tess.use();
+
+    terrain.use();
     camera.bind();
-    tex0.bind(0);
-    glPatchParameteri(GL_PATCH_VERTICES, 4);
-    vao.bind();
-    gl::draw_one(gl::enums::PATCHES, 0, vertex_count);
+    tex1.bind(0);
+    a_plane[lod]->draw_indecies();
     
 
     SDL::GL::SwapWindow(*state.core.p_window);
@@ -235,6 +259,12 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
             capture_cursor(state, false);
         }else if(event->key.key == SDLK_L){
             capture_cursor(state, true);
+        }else if(event->key.key == SDLK_UP){
+            lod = std::clamp(lod+1, 0, 3);
+            std::cout << "lod: " << lod << '\n';
+        }else if(event->key.key == SDLK_DOWN){
+            lod = std::clamp(lod-1, 0, 3);
+            std::cout << "lod: " << lod << '\n';
         }
     }
 
