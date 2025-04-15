@@ -69,7 +69,7 @@ gl::framebuffer fb1{nullptr};
 int frequency = 1;
 int seed = 1;
 
-bool should_capture_cursor = true;
+bool should_capture_cursor = false;
 void capture_cursor(appstate_t& state, bool on){
     should_capture_cursor = on;
     if(!SDL_SetWindowRelativeMouseMode(*state.core.p_window, on))
@@ -107,7 +107,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
 
-    capture_cursor(state, true);
+    //capture_cursor(state, true);
     return SDL_APP_CONTINUE;
 }catch(const std::exception& e){
     std::cerr << "Uncaught exception at SDL_AppInit: " << e.what() << '\n'; 
