@@ -1,0 +1,44 @@
+#version 450 core
+
+layout(quads, equal_spacing, ccw) in;
+
+uniform sampler2D heightmap;
+out vec2 texCoord;
+
+layout(std140, binding = 0) uniform ubCamera
+{
+    vec3 camera_position; // POSITION
+    vec3 camera_forward; // DIRECTION_FORWARD_NORMALIZED
+    vec3 camera_up; // DIRECTION_UP_NORMALIZED
+    vec3 camera_right; // DIRECTION_RIGHT_NORMALIZED
+
+    mat4 view; // VIEW
+    mat4 inverse_view; // INVERSE_VIEW
+
+    mat4 perspective; // PERSPECTIVE
+    mat4 inverse_perspective; // INVERSE_PERSPECTIVE
+
+    mat4 perspective_view; // PERSPECTIVE_VIEW
+    mat4 inverse_perspective_view; // INVERSE_PERSPECTIVE_VIEW
+};
+
+
+void main() {
+    // Get interpolated position
+    float u = gl_TessCoord.x;
+    float v = gl_TessCoord.y;
+    
+    // Bilinear interpolation
+    vec4 p0 = mix(gl_in[0].gl_Position, gl_in[1].gl_Position, u);
+    vec4 p1 = mix(gl_in[3].gl_Position, gl_in[2].gl_Position, u);
+    vec4 position = mix(p0, p1, v);
+    
+    // Get texture coordinate
+    texCoord = vec2(u, v);
+    
+    // Sample heightmap
+    float height = texture(heightmap, texCoord).r;
+    position.y = height;
+    
+    gl_Position = perspective_view * position;
+}

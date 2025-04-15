@@ -1,0 +1,30 @@
+#version 450 core
+
+layout(quads, equal_spacing, ccw) in;
+
+uniform sampler2D heightmap;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+out vec2 texCoord;
+
+void main() {
+    // Get interpolated position
+    float u = gl_TessCoord.x;
+    float v = gl_TessCoord.y;
+    
+    // Bilinear interpolation
+    vec4 p0 = mix(gl_in[0].gl_Position, gl_in[1].gl_Position, u);
+    vec4 p1 = mix(gl_in[3].gl_Position, gl_in[2].gl_Position, u);
+    vec4 position = mix(p0, p1, v);
+    
+    // Get texture coordinate
+    texCoord = vec2(u, v);
+    
+    // Sample heightmap
+    float height = texture(heightmap, texCoord).r;
+    position.y = height;
+    
+    gl_Position = projection * view * model * position;
+}

@@ -13,5 +13,5 @@ in vec3 TangentFragPos;
 out vec4 output_color;
 
 void main(){
-    output_color = vec4(LocalPosition, 1);
+    output_color = vec4(vec3(LocalPosition.y), 1);
 }

@@ -1,0 +1,52 @@
+#version 450 core
+
+layout(vertices = 4) out;
+
+layout(std140, binding = 0) uniform ubCamera
+{
+    vec3 camera_position; // POSITION
+    vec3 camera_forward; // DIRECTION_FORWARD_NORMALIZED
+    vec3 camera_up; // DIRECTION_UP_NORMALIZED
+    vec3 camera_right; // DIRECTION_RIGHT_NORMALIZED
+
+    mat4 view; // VIEW
+    mat4 inverse_view; // INVERSE_VIEW
+
+    mat4 perspective; // PERSPECTIVE
+    mat4 inverse_perspective; // INVERSE_PERSPECTIVE
+
+    mat4 perspective_view; // VIEW_PERSPECTIVE
+    mat4 inverse_perspective_view; // INVERSE_VIEW_PERSPECTIVE
+};
+
+in vec2 texCoord[];
+
+// Distance-based tessellation level calculation
+float getTessLevel(float distance) {
+    float maxTess = 64.0;
+    float minTess = 1.0;
+    float maxDist = 50.0;
+    float minDist = 5.0;
+    
+    return clamp(maxTess * (1.0 - (distance - minDist)/(maxDist - minDist)), minTess, maxTess);
+}
+
+void main() {
+    if (gl_InvocationID == 0) {
+        // Calculate distance from camera to each edge
+        vec3 center = (gl_in[0].gl_Position.xyz + gl_in[1].gl_Position.xyz + 
+                      gl_in[2].gl_Position.xyz + gl_in[3].gl_Position.xyz) / 4.0;
+        float dist = distance(center, camera_position);
+        
+        float tessLevel = getTessLevel(dist);
+        
+        gl_TessLevelInner[0] = tessLevel;
+        gl_TessLevelInner[1] = tessLevel;
+        gl_TessLevelOuter[0] = tessLevel;
+        gl_TessLevelOuter[1] = tessLevel;
+        gl_TessLevelOuter[2] = tessLevel;
+        gl_TessLevelOuter[3] = tessLevel;
+    }
+    
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+}

@@ -56,8 +56,9 @@
 camera_t camera{nullptr};
 plane_t*  p_plane{nullptr};
 
-gl::program basic{nullptr};
-gl::program terrain{nullptr};
+//g/l::program basic{nullptr}/;
+//gl::program terrain{nullptr};
+gl::program terrain_tess{nullptr};
 //gl::program passthru{nullptr};
 //gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
 
@@ -93,9 +94,10 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     state.init();
 
     std::cout << "Loading...\n";
-    std::cout << "Loading...\n";
-    basic = shader::load("ass/shaders/basic");
-    terrain = shader::load("ass/shaders/terrain");
+    //basic = shader::load("ass/shaders/basic");
+    //terrain = shader::load("ass/shaders/terrain");
+    terrain_tess = shader::load("ass/shaders/terrain-tess");
+
     //passthru = shader::load("ass/shaders/passthru");
     std::cout << "Loaded\n";
 
@@ -156,10 +158,13 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
     glEnable(GL_DEPTH_TEST);
-    terrain.use();
+    terrain_tess.use();
     camera.bind();
     tex0.bind(0);
-    gl::draw_indecies(*p_plane);
+    p_plane->bind();
+    gl::draw_indecies(gl::enums::drawmode::PATCHES, *p_plane->v_indecie_count);
+    std::cout << "v_indecie_count: " << *p_plane->v_indecie_count << '\n';
+    std::cout << "v_vertex_count: " << *p_plane->v_vertex_count << '\n';
     
 
     SDL::GL::SwapWindow(*state.core.p_window);

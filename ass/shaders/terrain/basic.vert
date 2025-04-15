@@ -31,7 +31,7 @@ layout(std140, binding = 0) uniform ubCamera
 
 uniform mat4 model_matrix = mat4(1.f);
 uniform vec2 size = vec2(32);
-uniform vec2 height_minmax = vec2(-1, 2);
+uniform vec2 height_minmax = vec2(-4, 4);
 
 out flat uint   InstanceIndex;
 out vec3        LocalPosition;

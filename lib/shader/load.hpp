@@ -66,12 +66,14 @@ namespace shader {
             ".tessc",
             ".tssc",
             ".tsc",
+            ".tcs",
         },
         std::unordered_set<std::string>{
             ".tesselation_eval",
             ".tessev",
             ".tsse",
             ".tse",
+            ".tes",
         },
     };
 
