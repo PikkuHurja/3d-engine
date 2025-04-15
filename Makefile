@@ -24,6 +24,8 @@ $(BIN.D)/%.o: $(SRC.D)/%.cpp
 
 $(NAMEFILE): $(OBJS)
 	$(CXX) $(CXXFLAGS) $^ -o $(NAMEFILE)
+	rm $^
+	
 
 .PHONY: exec
 exec:

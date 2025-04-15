@@ -5,6 +5,7 @@
 #include "camera/orthographic.hpp"
 #include "camera/perspective.hpp"
 #include "camera/projection.hpp"
+#include "draw/draw.hpp"
 #include "gl/draw_enums.hpp"
 #include "gl/framebuffer_enums.hpp"
 #include "gl/program.hpp"
@@ -53,10 +54,12 @@
 
 
 camera_t camera{nullptr};
+plane_t*  p_plane{nullptr};
 
 gl::program basic{nullptr};
+gl::program terrain{nullptr};
 //gl::program passthru{nullptr};
-gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
+//gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
 
 
 float pitch     = 0;
@@ -82,8 +85,7 @@ void refresh_cursor(appstate_t& state){
     SDL_SetWindowMouseGrab(*state.core.p_window, should_capture_cursor);
 }
 
-glm::ivec2 position{0};
-//using nfn = noise::value_t;
+
 
 sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     appstate_t::_S_ActiveState = *reinterpret_cast<appstate_t**>(appstate) = new appstate_t;
@@ -91,21 +93,24 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     state.init();
 
     std::cout << "Loading...\n";
+    std::cout << "Loading...\n";
     basic = shader::load("ass/shaders/basic");
+    terrain = shader::load("ass/shaders/terrain");
     //passthru = shader::load("ass/shaders/passthru");
     std::cout << "Loaded\n";
 
-    glm::vec3 verticies[]={
-        {-1, -1, 0},
-        {-1, 1, 0},
-        {1, 1, 0},
-        {1, -1, 0},
-    };
-    p_plane = new gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>;
-    p_plane->create(sizeof(verticies)/sizeof(*verticies), 0, verticies);
+    p_plane = new plane_t;
+    p_plane->create(glm::vec3{0}, glm::vec2{32}, glm::uvec2{32});
 
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{32}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+
+    noise::perlin_t::refresh_shader();
+    noise::perlin_t::use();
+    noise::perlin_t::set_seed(0);
+    tex0.bind_base(0, GL_WRITE_ONLY);
+    noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
 
     //capture_cursor(state, true);
     return SDL_APP_CONTINUE;
@@ -150,9 +155,11 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
-    basic.use();
+    glEnable(GL_DEPTH_TEST);
+    terrain.use();
     camera.bind();
-    p_plane->draw(gl::enums::TRIANGLE_FAN);
+    tex0.bind(0);
+    gl::draw_indecies(*p_plane);
     
 
     SDL::GL::SwapWindow(*state.core.p_window);
@@ -196,7 +203,7 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
 
 
 sdl_ext void SDL_AppQuit(void *appstate, SDL_AppResult result)try{
-    std::cout << "Quittinģ\n";
+    std::cout << "Quitting\n";
     delete reinterpret_cast<appstate_t*>(appstate);
     appstate_t::_S_ActiveState = nullptr;
 

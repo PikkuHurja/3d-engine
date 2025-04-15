@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include "draw/draw.hpp"
+#include "gl/draw_enums.hpp"
 #include "gl_mesh_interleaved.hpp"
 #include <cassert>
 #include <cstddef>
@@ -34,7 +36,7 @@ struct plane_t : gl_mesh_interleaved_t<3, true, true, true, true, true, true>{
             for(uint x = 0; x < vertex_count.x; x++){
                 auto& e = verticies[x+y*vertex_count.x];
                 e.uv        = glm::vec2(x,y)/glm::vec2{vertex_count};
-                e.position  =   position + glm::vec3{size * e.uv, 0};
+                e.position  =   position + glm::vec3{size.x * e.uv.x, 0, size.y * e.uv.y};
                 e.normal    =   glm::vec3{0.0f, 1.0f, 0.0f};    // pointing up
                 e.tangent   =   glm::vec3{1.0f, 0.0f, 0.0f};    // along X
                 e.bitangent =   glm::vec3{0.0f, 0.0f, 1.0f};    // along Z
@@ -66,5 +68,15 @@ struct plane_t : gl_mesh_interleaved_t<3, true, true, true, true, true, true>{
         mesh_t::create(vertex_count.x*vertex_count.y, indecie_count, verticies.get(), indecies.get());
     }
 
+    void draw(){
+        mesh_t::bind();
+        gl::draw_indecies(gl::enums::TRIANGLES, *v_indecie_count);
+        mesh_t::unbind();
+    }
 
 };
+
+template<>
+inline void gl::draw_indecies<plane_t>(plane_t& plane){
+    plane.draw();
+}

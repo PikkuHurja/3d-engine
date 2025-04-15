@@ -11,6 +11,7 @@
 #include <cstring>
 #include <glm/detail/qualifier.hpp>
 #include <glm/ext/vector_float2.hpp>
+#include <initializer_list>
 #include <memory>
 #include <sys/types.h>
 #include <type_traits>
@@ -23,7 +24,8 @@ template<
     bool _has_tangents = false,     // 3 d
     bool _has_bitangents = false,   // 3 d
     bool _has_indecies = false,     // seperate, uint
-    bool _stores_vertex_count = true
+    bool _stores_vertex_count = true,
+    bool _stores_indecie_count = true
 >
 struct gl_mesh_interleaved_t{
     using vertex_t = std::conditional_t<_dimention_verticies!=0, glm::vec<_dimention_verticies, float>, void>;
@@ -82,9 +84,10 @@ struct gl_mesh_interleaved_t{
     uint vertex_count()const{return _stores_vertex_count ? *v_vertex_count : -1;}
 
     gl::vertex_array                                            gl_vao{nullptr};
-    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           gl_data{nullptr};
+    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           gl_data;
     gl::typed_buffer<gl::enums::buffer::ELEMENT_ARRAY_BUFFER>   gl_indecies[_has_indecies];
     uint                                                        v_vertex_count[_stores_vertex_count];
+    uint                                                        v_indecie_count[_stores_indecie_count];
 
     void bind()     {gl_vao.bind();}
     inline static void unbind()   {gl::vertex_array::unbind();}
@@ -97,7 +100,8 @@ struct gl_mesh_interleaved_t{
             if(!*gl_indecies) gl_indecies->create();
             
             gl_indecies->bind();
-            gl_indecies->data(indecie_data, sizeof(uint)*indecie_count, gl::enums::buffer::STATIC_DRAW);
+            gl_indecies->data(indecie_data, indecie_count*sizeof(uint), gl::enums::buffer::STATIC_DRAW);
+            if constexpr (_stores_indecie_count) *v_indecie_count = indecie_count;
         }
 
         if(!gl_data) gl_data.create();
@@ -138,7 +142,7 @@ struct gl_mesh_interleaved_t{
     /*
         use nullptr for unset
     */
-    inline bool create(
+    inline void create(
         uint vertex_count,
         vertex_t* verticies,
         texture_map_t* texturemap,
@@ -148,24 +152,7 @@ struct gl_mesh_interleaved_t{
         uint indecie_count,
         uint* indecie_data
     ){
-        if(!gl_vao) gl_vao.create();
-        gl_vao.bind();
-
-        if constexpr(_has_indecies){
-            if(!*gl_indecies) gl_indecies->create();
-            
-            gl_indecies->bind();
-            gl_indecies->data(indecie_data, sizeof(uint)*indecie_count, gl::enums::buffer::STATIC_DRAW);
-        }
-
-        if(!gl_data) gl_data.create();
-        gl_data.bind();
-
         std::unique_ptr<uint8_t[]> vertex_data = std::make_unique<uint8_t[]>(per_vertex_size()*vertex_count);
-        
-        if constexpr(_stores_vertex_count)
-            *v_vertex_count = vertex_count;
-        
         for(size_t i = 0; i < vertex_count; i++){
             uint8_t* data = vertex_data.get() + i*per_vertex_size();
             if constexpr(_dimention_verticies)    if(verticies)      { std::memmove(data+vertex_offset(),     verticies+i,  vertex_size());     }
@@ -174,10 +161,8 @@ struct gl_mesh_interleaved_t{
             if constexpr(_has_tangents)           if(tangents)       { std::memmove(data+tangents_offset(),   tangents+i,   tangents_size());   }
             if constexpr(_has_bitangents)         if(bitangents)     { std::memmove(data+bitangents_offset(), bitangents+i, bitangents_size()); }
         }
-    
-        gl_data.data(vertex_data.get(), per_vertex_size()*vertex_count, gl::enums::buffer::STATIC_DRAW);
-    
-        gl_vao.unbind();
+
+        create(vertex_count, indecie_count, vertex_data.get(), indecie_data);
     }
 
 

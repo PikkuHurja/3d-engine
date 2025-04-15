@@ -103,7 +103,7 @@ struct appstate_t{
                 glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
                     std::cerr << "GL Debug["<<id<<"]{src: "<< source << ", type: " << type << ", lvl: "<< severity <<" }: " << std::string_view{message, static_cast<size_t>(length < 0 ? 0 : length)} << std::endl;
                 }, nullptr);
-                glClearColor(1,0, 1, 1);
+                glClearColor(.1,0, .1, 1);
 
                 if(dl_handle) deinit();
 
