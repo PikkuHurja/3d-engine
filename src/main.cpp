@@ -104,7 +104,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{32}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<10}, gl::enums::texture::format_storage::STORAGE_R8, 1);
 
     noise::perlin_t::refresh_shader();
     noise::perlin_t::use();
