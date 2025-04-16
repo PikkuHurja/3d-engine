@@ -17,7 +17,7 @@ struct perspective{
     inline bool operator !=(const perspective& t)const{return !(t == *this);}
 
     inline static perspective make_default(){
-        return perspective{glm::radians(90.f), 16.f/9.f, 0.001, 100};
+        return perspective{glm::radians(90.f), 16.f/9.f, 0.001, 1000};
     }
     glm::mat4 matrix()const{
         return glm::perspective(fov_y, aspect_ratio, near_plane, far_plane);

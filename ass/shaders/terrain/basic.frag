@@ -32,16 +32,22 @@ void main(){
     float height = LocalPosition.y;
 
     vec3 color;
-    if(height >= 0){
+    if(height >= 0.2){
         color = mix(
-            vec3(0, 1, 0), 
-            vec3(.7), 
-            clamp(height, 0, 1)
+            vec3(0, 0.5+height/2, 0), 
+            vec3(log(height/16+1)), 
+            clamp(height-1.2, 0, 1)
+        );
+    }else if(height >= 0.){
+        color = mix(
+            vec3(179./255., 169./255., 108./255.),
+            vec3(0, 0.5+height/2, 0), 
+            clamp(height*5, 0, 1)
         );
     }else{
         color = mix(
-            vec3(0, 0, .7), 
-            vec3(0.7), 
+            vec3(0,0,1+height/8),
+            vec3(179./255., 169./255., 108./255.),
             clamp(height+1, 0, 1)
         );
     }

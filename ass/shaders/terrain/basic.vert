@@ -28,8 +28,8 @@ layout(std140, binding = 0) uniform ubCamera{
 
 uniform sampler2D height_map;
 uniform mat4 model_matrix   = mat4(1.f);
-uniform vec2 height_minmax  = vec2(-8, 8);
-uniform vec2 size           = vec2(32);
+uniform vec2 height_minmax  = vec2(-16, 16);
+uniform vec2 size           = vec2(64);
 
 
 out flat uint   InstanceIndex;

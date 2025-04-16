@@ -3,7 +3,7 @@ layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0, r8) uniform writeonly image2D outputImage;
 
 uniform uint seed = 0x578437adU; // can be set to something else if you want a different set of random values
-uniform int frequency = 1;
+uniform float frequency = 1;
 uniform int octave_count = 12;
 uniform float persistence = 0.5;
 uniform float lacunarity = 2.0;

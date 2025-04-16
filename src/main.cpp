@@ -162,23 +162,23 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
     fb0.create();
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<12}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<10}, gl::enums::texture::format_storage::STORAGE_R8, 1);
     tex0.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_LINEAR);
     tex0.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
     fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
 
     noise::perlin_t::refresh_shader();
     noise::perlin_t::use();
+    noise::perlin_t::set_frequency(0.25);
     noise::perlin_t::set_seed(0);
     tex0.bind_base(0, GL_WRITE_ONLY);
     noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
     gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
 
-    fb1.create();
-    tex1.create(gl::enums::texture::Texture2D, glm::uvec2{1<<6}, gl::enums::texture::format_storage::STORAGE_R8, 1);
-    fb1.attach(tex1, gl::enums::framebuffer::COLOR_ATTACHMENT0);
-
-    fb0.blit(fb1, glm::ivec2{0}, glm::ivec2{tex0.texture_size()}, glm::ivec2{0}, glm::ivec2{tex1.texture_size()});
+    //fb1.create();
+    //tex1.create(gl::enums::texture::Texture2D, glm::uvec2{1<<6}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    //fb1.attach(tex1, gl::enums::framebuffer::COLOR_ATTACHMENT0);
+    //fb0.blit(fb1, glm::ivec2{0}, glm::ivec2{tex0.texture_size()}, glm::ivec2{0}, glm::ivec2{tex1.texture_size()});
 
     //capture_cursor(state, true);
     return SDL_APP_CONTINUE;
@@ -192,7 +192,7 @@ void update_camera(){
     const bool* keystate = SDL_GetKeyboardState(nullptr);
     const float dt = appstate_t::_S_ActiveState->time.delta_timef();
     const float slow = 1 * dt;
-    const float fast = 5 * dt;
+    const float fast = 20 * dt;
     float movement = keystate[SDL_SCANCODE_LSHIFT] ? fast : slow;
     if(keystate[SDL_SCANCODE_W]){
         camera.translation() += movement*camera.forward();
@@ -227,7 +227,7 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
     terrain.use();
     camera.bind();
-    tex1.bind(0);
+    tex0.bind(0);
     a_plane[lod]->draw_indecies();
     
 
@@ -265,6 +265,8 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
         }else if(event->key.key == SDLK_DOWN){
             lod = std::clamp(lod-1, 0, 3);
             std::cout << "lod: " << lod << '\n';
+        }else if(event->key.key == SDLK_R){
+            terrain = shader::load("ass/shaders/terrain");
         }
     }
 

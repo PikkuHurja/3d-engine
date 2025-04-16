@@ -9,7 +9,7 @@ namespace noise {
         (("/home/pikku/code/3d-sdl3/ass/shaders/noise/perlin.comp", gl::enums::shader::COMPUTE)), 
 
         ((seed, uint))
-        ((frequency, int))
+        ((frequency, float))
         ((octave_count, int))
         ((persistence, float))
         ((lacunarity, float)), 
