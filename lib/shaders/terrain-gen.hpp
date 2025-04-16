@@ -11,6 +11,7 @@ namespace shader {
         ((access_offset, uint))
         ((chunck_position, glm::ivec2))
         ((chunck_size, glm::uvec2))
+        ((height_map_strenght, float))
     
     , {})
 

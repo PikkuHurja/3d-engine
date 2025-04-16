@@ -161,6 +161,7 @@ struct terrain{
         sh::set_access_offset(index);
         sh::set_chunck_position(chunck_position);
         sh::set_chunck_size(glm::uvec2{chunck_size});
+        sh::set_height_map_strenght(99);
 
         vbo.bind(gl::enums::buffer::SHADER_STORAGE_BUFFER);
         vbo.bind_base(gl::enums::buffer::SHADER_STORAGE_BUFFER, 0);
