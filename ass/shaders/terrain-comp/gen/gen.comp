@@ -1,0 +1,46 @@
+#version 430
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(binding = 0) uniform sampler2D height_map;
+uniform uint    access_offset          = 0;         //offset for when generating multiple chunks, the unit is per chunck
+uniform ivec2   chunck_position       = ivec2(0);
+uniform uvec2   chunck_size           = ivec2(0); //[0, 1] (chunk should include these verticies, yes there are double verticies, but its a price im willing to pay rn)
+uniform float   height_map_strenght   = 10;
+    //ye we doing the fucky wucky with this one.... might as well kms ig
+layout(std430, binding = 0) writeonly buffer chunk{
+    float chunk_data[];
+};
+
+/*
+vec3 aVertex
+vec3 aNormal
+vec3 aTangent
+vec3 aBitangent
+
+vec2 aUV; //will also store the world coordinates
+*/
+const uint stride = 4*3 + 2;
+const uint position_offset = 0;
+const uint uv_offset = 3;
+
+
+
+void main(){
+    uvec2 l = gl_GlobalInvocationID.xy;
+    if(l.x >= chunck_size.x || l.y >=chunck_size.y) return;
+
+        // the definition of shenanigans
+    vec2 abs_cp = abs(chunck_position);
+    vec2 uv = vec2(l)/vec2(chunck_size-1);
+    vec2 tex_uv = vec2(l)/vec2(chunck_size);
+    vec2 global_uv      = (uv + abs_cp) * chunck_position/abs_cp; // [0, 1]
+    vec2 xz_position    = uv*chunck_size + chunck_size*chunck_position;
+    float y_position    = texture(height_map, tex_uv).x;
+    uint offset         = (access_offset*chunck_size.x*chunck_size.y + l.x + l.y * chunck_size.x)*stride;
+    
+    chunk_data[offset+position_offset]      = xz_position.x;
+    chunk_data[offset+position_offset+1]    = y_position * height_map_strenght;
+    chunk_data[offset+position_offset+2]    = xz_position.y;
+
+    chunk_data[offset+uv_offset]    = global_uv.x;
+    chunk_data[offset+uv_offset+1]    = global_uv.y;
+}

@@ -55,9 +55,64 @@
 #include "noise/perlin.hpp"
 #include "noise/perlin-tileable.hpp"
 #include "noise/value.hpp"
+#include "shaders/terrain-gen.hpp"
 
 #include <cppostream/glm/glm.hpp>
 
+
+struct terrain{
+    using sh = shader::terrain_gen_t;
+    gl::vertex_array vao{nullptr};
+    gl::basic_buffer vbo{nullptr};
+    uint             chunck_size = 0;
+
+    struct data{
+        glm::vec3 vertex;
+        glm::vec2 uv;
+        glm::vec3 n, t, bt;
+    };
+
+    void create(uint cs){
+        chunck_size = cs;
+
+        vao.create();
+        vbo.create();
+        vao.bind();
+        vbo.bind(gl::enums::buffer::type::ARRAY_BUFFER);
+        vbo.data(nullptr, sizeof(data)*cs*cs, gl::enums::buffer::STATIC_DRAW);
+
+        vbo.attribute(gl::shader_spec::aVertex, 3, gl::enums::buffer::FLOAT, sizeof(data), false, 0);
+        vbo.attribute(gl::shader_spec::aUV, 2, gl::enums::buffer::FLOAT, sizeof(data), false, sizeof(float)*(3));
+        vbo.attribute(gl::shader_spec::aNormal, 3, gl::enums::buffer::FLOAT, sizeof(data), false, sizeof(float)*(3+2));
+        vbo.attribute(gl::shader_spec::aTangent, 3, gl::enums::buffer::FLOAT, sizeof(data), false, sizeof(float)*(3+2+3));
+        vbo.attribute(gl::shader_spec::aBitangent, 3, gl::enums::buffer::FLOAT, sizeof(data), false, sizeof(float)*(3+2+3+3));
+
+        vao.enable_attribute(gl::shader_spec::aVertex);
+        vao.enable_attribute(gl::shader_spec::aUV);
+        vao.enable_attribute(gl::shader_spec::aNormal);
+        vao.enable_attribute(gl::shader_spec::aTangent);
+        vao.enable_attribute(gl::shader_spec::aBitangent);
+        vao.unbind();
+        vbo.unbind(gl::enums::buffer::ARRAY_BUFFER);
+    }
+
+    void gen(gl::texture* noise = nullptr){
+        if(!sh::_S_Program) sh::refresh_shader();
+        sh::use();
+        sh::set_access_offset(0);
+        sh::set_chunck_position(glm::ivec2{0});
+        sh::set_chunck_size(glm::uvec2{chunck_size});
+
+        vbo.bind(gl::enums::buffer::SHADER_STORAGE_BUFFER);
+        vbo.bind_base(gl::enums::buffer::SHADER_STORAGE_BUFFER, 0);
+
+        if(noise)
+            noise->bind(0);
+        
+        sh::dispatch(glm::uvec2{chunck_size});
+    }
+
+} terr;
 
 camera_t camera{nullptr};
 /*
@@ -107,9 +162,9 @@ size_t vertex_count = 0;
 
 */
 
-gl::program terrain{nullptr};
+//gl::program terrain{nullptr};
 
-//g/l::program basic{nullptr}/;
+gl::program basic{nullptr};
 //gl::program passthru{nullptr};
 //gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
     //plane levels of detail
@@ -146,23 +201,21 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     appstate_t& state = *appstate_t::_S_ActiveState;
     state.init();
 
-    std::cout << "Loading...\n";
-    //basic = shader::load("ass/shaders/basic");
-    terrain = shader::load("ass/shaders/terrain");
+    basic = shader::load("ass/shaders/basic");
+    //terrain = shader::load("ass/shaders/terrain");
     //passthru = shader::load("ass/shaders/passthru");
-    std::cout << "Loaded\n";
 
-    a_plane[0] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<10});
-    a_plane[1] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<9});
-    a_plane[2] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<8});
-    a_plane[3] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<7});
+    a_plane[0] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{16});
+    //a_plane[1] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<9});
+    //a_plane[2] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<8});
+    //a_plane[3] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<7});
     
 
 
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
     fb0.create();
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<10}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{16}, gl::enums::texture::format_storage::STORAGE_R8, 1);
     tex0.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_LINEAR);
     tex0.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
     fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
@@ -174,6 +227,10 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     tex0.bind_base(0, GL_WRITE_ONLY);
     noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
     gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
+
+
+    shader::terrain_gen_t::refresh_shader();
+    terr.create(16);
 
     //fb1.create();
     //tex1.create(gl::enums::texture::Texture2D, glm::uvec2{1<<6}, gl::enums::texture::format_storage::STORAGE_R8, 1);
@@ -221,15 +278,23 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     refresh_cursor(state);
     update_camera();
 
+
+    terr.gen(&tex0);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
     glEnable(GL_DEPTH_TEST);
 
-    terrain.use();
-    camera.bind();
-    tex0.bind(0);
-    a_plane[lod]->draw_indecies();
     
+    //terrain.use();
+    //camera.bind();
+    //tex0.bind(0);
+    basic.use();
+    terr.vao.bind();
+    glPointSize(3.2);
+    glDrawArrays(GL_POINTS, 0, terr.chunck_size*terr.chunck_size);
+    //glDrawArrays(GL_LINE_STRIP, 0, terr.chunck_size*terr.chunck_size);
+    //glDrawArrays(GL_TRIANGLES, 0, terr.chunck_size*terr.chunck_size);
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return SDL_APP_CONTINUE;
@@ -266,7 +331,7 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
             lod = std::clamp(lod-1, 0, 3);
             std::cout << "lod: " << lod << '\n';
         }else if(event->key.key == SDLK_R){
-            terrain = shader::load("ass/shaders/terrain");
+            //terrain = shader::load("ass/shaders/terrain");
         }
     }
 
