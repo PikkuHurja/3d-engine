@@ -303,7 +303,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
 
     shader::terrain_gen_t::refresh_shader();
-    terr.create(256);
+    terr.create(64);
 
     //fb1.create();
     //tex1.create(gl::enums::texture::Texture2D, glm::uvec2{1<<6}, gl::enums::texture::format_storage::STORAGE_R8, 1);

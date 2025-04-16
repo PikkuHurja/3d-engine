@@ -33,6 +33,7 @@ out vec3        LocalPosition;
 out vec3        WorldPosition;
 out vec3        Normal;
 
+out vec2        UV;
 
 out vec3 TangentLightPos;
 out vec3 TangentViewPos;
@@ -44,6 +45,7 @@ out mat3 TBN; // TBN Matrix for normal mapping
 void main(){
         //basic passthoughs
     LocalPosition = aVertex;
+    UV = aUV;
 
 
         ////////////// INSTANCE MAPPING //////////////

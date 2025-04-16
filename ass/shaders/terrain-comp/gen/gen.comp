@@ -29,18 +29,23 @@ void main(){
     if(l.x >= chunck_size.x || l.y >=chunck_size.y) return;
 
         // the definition of shenanigans
-    vec2 abs_cp = abs(chunck_position);
     vec2 uv = vec2(l)/vec2(chunck_size-1);
     vec2 tex_uv = vec2(l)/vec2(chunck_size);
-    vec2 global_uv      = (uv + abs_cp) * chunck_position/abs_cp; // [0, 1]
+    vec2 tex_size_inv = 1/vec2(textureSize(height_map, 0));
+    vec2 sample_location = (tex_uv * ( 1-2*tex_size_inv )) + tex_size_inv;
+    vec2 global_uv      = (uv + abs(chunck_position));
+    if(chunck_position.x<0)
+        global_uv.x=-global_uv.x;
+    if(chunck_position.y<0)
+        global_uv.y=-global_uv.y;
     vec2 xz_position    = uv*chunck_size + chunck_size*chunck_position;
-    float y_position    = texture(height_map, tex_uv).x;
+    float y_position    = texture(height_map, sample_location).x;
     uint offset         = (access_offset*chunck_size.x*chunck_size.y + l.x + l.y * chunck_size.x)*stride;
     
     chunk_data[offset+position_offset]      = xz_position.x;
     chunk_data[offset+position_offset+1]    = y_position * height_map_strenght;
     chunk_data[offset+position_offset+2]    = xz_position.y;
 
-    chunk_data[offset+uv_offset]    = global_uv.x;
-    chunk_data[offset+uv_offset+1]    = global_uv.y;
+    chunk_data[offset+uv_offset]    =  global_uv.x;
+    chunk_data[offset+uv_offset+1]  =  global_uv.y;
 }
