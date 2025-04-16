@@ -31,7 +31,11 @@
 #include <algorithm>
 #include <barrier>
 #include <cassert>
+#include <chrono>
+#include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <glm/ext/quaternion_float.hpp>
 #include <glm/ext/quaternion_geometric.hpp>
@@ -298,7 +302,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
 
     shader::terrain_gen_t::refresh_shader();
-    terr.create(16);
+    terr.create(256);
 
     //fb1.create();
     //tex1.create(gl::enums::texture::Texture2D, glm::uvec2{1<<6}, gl::enums::texture::format_storage::STORAGE_R8, 1);
@@ -339,13 +343,20 @@ void update_camera(){
     camera.refresh();
 }
 
-
+uint i = 0;
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
     state.time.update();
     refresh_cursor(state);
     update_camera();
 
+
+    noise::perlin_t::use();
+    noise::perlin_t::set_frequency(0.1f);
+    noise::perlin_t::set_seed(0);
+    tex0.bind_base(0, GL_WRITE_ONLY);
+    noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
+    gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
 
     for(size_t i = 0; i < terr.chunck_count; i++){
         terr.gen(i, glm::ivec2{i, 0}, &tex0);
