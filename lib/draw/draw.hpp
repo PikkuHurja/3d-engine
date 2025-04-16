@@ -42,6 +42,13 @@ namespace gl {
         glDrawElementsInstanced(dm, indecie_count, type, reinterpret_cast<const void*>(indices_offset), instance_count);
     }
 
+    inline static void multidraw( gl::enums::drawmode dm, const GLint *first, const GLsizei *count, GLsizei num){
+        glMultiDrawArrays(dm, first, count, num);
+    }
+
+    inline static void multidraw_indecies( gl::enums::drawmode dm, const GLsizei *count, const size_t * const indices, GLsizei num, GLenum type = GL_UNSIGNED_INT){
+        glMultiDrawElements(dm, count, type, reinterpret_cast<const void*const*const>(indices), num);
+    }
 
 
 }

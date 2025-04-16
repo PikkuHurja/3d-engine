@@ -30,6 +30,7 @@
 #include <SDL3/SDL_scancode.h>
 #include <algorithm>
 #include <barrier>
+#include <cassert>
 #include <cstddef>
 #include <exception>
 #include <glm/ext/quaternion_float.hpp>
@@ -41,6 +42,8 @@
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_uint2.hpp>
 #include <iostream>
+#include <memory>
+#include <sys/types.h>
 #define SDL_MAIN_USE_CALLBACKS
 #define sdl_ext extern "C" 
 #include <SDL3/SDL_main.h>
@@ -64,7 +67,14 @@ struct terrain{
     using sh = shader::terrain_gen_t;
     gl::vertex_array vao{nullptr};
     gl::basic_buffer vbo{nullptr};
-    uint             chunck_size = 0;
+    gl::basic_buffer ibo{nullptr}; // index buffer
+    uint             chunck_size    = 0;
+    uint             chunck_count   = 0;
+    uint             indecie_count  = 0;
+
+    std::unique_ptr<GLsizei[]>  count_array; // the same values [indecie_count], repeated
+    std::unique_ptr<size_t[]>  indecies_array; // the same values [0], repeated
+    std::unique_ptr<GLint[]>    indecie_begin_array; // [n*chunck_size.x*chunck_size.y], n in +integer
 
     struct data{
         glm::vec3 vertex;
@@ -72,14 +82,58 @@ struct terrain{
         glm::vec3 n, t, bt;
     };
 
-    void create(uint cs){
+    void create(uint cs, uint cc = 9){
+        vao.create();
+        vao.bind();
+        chunck_count = cc;
         chunck_size = cs;
 
-        vao.create();
+
+
+        ibo.create();
+        ibo.bind(gl::enums::buffer::ELEMENT_ARRAY_BUFFER);
+        uint subcs = cs-1;
+        indecie_count = subcs*subcs*6;
+        std::unique_ptr<uint[]> indecie_data{new uint[indecie_count]()};
+
+        size_t index = 0;
+        for(uint y = 0; y < subcs; y++){
+            for(uint x = 0; x < subcs; x++){
+                uint    top_l = y*cs+x, 
+                        top_r = top_l+1, 
+                        bottom_l = top_l+cs, //(y + 1) * vertex_count.x + x;
+                        bottom_r = bottom_l+1;
+
+
+                if(index+6 > indecie_count)
+                    std::cerr << index+6 << " > " << indecie_count << '\n';
+
+                indecie_data[index++] = top_l;
+                indecie_data[index++] = bottom_l;
+                indecie_data[index++] = top_r;
+
+                indecie_data[index++] = top_r;
+                indecie_data[index++] = bottom_l;
+                indecie_data[index++] = bottom_r;
+            }
+        }
+
+        count_array.reset(new GLsizei[cc]);
+        indecies_array.reset(new size_t[cc]);
+        indecie_begin_array.reset(new GLint[cc]);
+        for(size_t i = 0; i < cc; i++){
+
+            count_array[i] = indecie_count;
+            indecies_array[i] = 0;
+            indecie_begin_array[i]=i*cs*cs;
+
+        }
+
+        ibo.data(indecie_data.get(), indecie_count*sizeof(uint), gl::enums::buffer::STATIC_DRAW);
+
         vbo.create();
-        vao.bind();
         vbo.bind(gl::enums::buffer::type::ARRAY_BUFFER);
-        vbo.data(nullptr, sizeof(data)*cs*cs, gl::enums::buffer::STATIC_DRAW);
+        vbo.data(nullptr, sizeof(data)*cs*cs*chunck_count, gl::enums::buffer::STATIC_DRAW);
 
         vbo.attribute(gl::shader_spec::aVertex, 3, gl::enums::buffer::FLOAT, sizeof(data), false, 0);
         vbo.attribute(gl::shader_spec::aUV, 2, gl::enums::buffer::FLOAT, sizeof(data), false, sizeof(float)*(3));
@@ -94,13 +148,14 @@ struct terrain{
         vao.enable_attribute(gl::shader_spec::aBitangent);
         vao.unbind();
         vbo.unbind(gl::enums::buffer::ARRAY_BUFFER);
+        ibo.unbind(gl::enums::buffer::ELEMENT_ARRAY_BUFFER);
     }
 
-    void gen(gl::texture* noise = nullptr){
+    void gen(uint index, glm::ivec2 chunck_position, gl::texture* noise = nullptr){
         if(!sh::_S_Program) sh::refresh_shader();
         sh::use();
-        sh::set_access_offset(0);
-        sh::set_chunck_position(glm::ivec2{0});
+        sh::set_access_offset(index);
+        sh::set_chunck_position(chunck_position);
         sh::set_chunck_size(glm::uvec2{chunck_size});
 
         vbo.bind(gl::enums::buffer::SHADER_STORAGE_BUFFER);
@@ -110,6 +165,19 @@ struct terrain{
             noise->bind(0);
         
         sh::dispatch(glm::uvec2{chunck_size});
+    }
+
+    void draw(){
+        vao.bind();
+        //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+        gl::draw_indecies(gl::enums::TRIANGLES, indecie_count);
+        //glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+        //gl::draw_indecies(gl::enums::TRIANGLES, indecie_count);
+    }
+    
+    void draw_all(){
+        vao.bind();
+        glMultiDrawElementsBaseVertex(GL_TRIANGLES, count_array.get(), GL_UNSIGNED_INT, reinterpret_cast<const void**>(indecies_array.get()), chunck_count, indecie_begin_array.get());
     }
 
 } terr;
@@ -215,7 +283,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
     fb0.create();
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{16}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<8}, gl::enums::texture::format_storage::STORAGE_R8, 1);
     tex0.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_LINEAR);
     tex0.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
     fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
@@ -279,7 +347,9 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     update_camera();
 
 
-    terr.gen(&tex0);
+    for(size_t i = 0; i < terr.chunck_count; i++){
+        terr.gen(i, glm::ivec2{i, 0}, &tex0);
+    }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
@@ -290,6 +360,8 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     //camera.bind();
     //tex0.bind(0);
     basic.use();
+    terr.draw_all();
+
     terr.vao.bind();
     glPointSize(3.2);
     glDrawArrays(GL_POINTS, 0, terr.chunck_size*terr.chunck_size);
