@@ -352,14 +352,14 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     update_camera();
 
 
-    noise::perlin_t::use();
-    noise::perlin_t::set_frequency(0.1f);
-    noise::perlin_t::set_seed(0);
-    tex0.bind_base(0, GL_WRITE_ONLY);
-    noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
-    gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
 
     for(size_t i = 0; i < terr.chunck_count; i++){
+        noise::perlin_t::use();
+        noise::perlin_t::set_frequency(0.1f);
+        noise::perlin_t::set_seed(i);
+        tex0.bind_base(0, GL_WRITE_ONLY);
+        noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
+        gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
         terr.gen(i, glm::ivec2{i, 0}, &tex0);
     }
 
@@ -374,9 +374,9 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     basic.use();
     terr.draw_all();
 
-    terr.vao.bind();
-    glPointSize(3.2);
-    glDrawArrays(GL_POINTS, 0, terr.chunck_size*terr.chunck_size);
+    //terr.vao.bind();
+    //glPointSize(3.2);
+    //glDrawArrays(GL_POINTS, 0, terr.chunck_size*terr.chunck_size);
     //glDrawArrays(GL_LINE_STRIP, 0, terr.chunck_size*terr.chunck_size);
     //glDrawArrays(GL_TRIANGLES, 0, terr.chunck_size*terr.chunck_size);
 

@@ -1,5 +1,9 @@
 #version 430
 layout(local_size_x = 16, local_size_y = 16) in;
+
+/*
+    heightmap needs to have overscan, so that it matches the ting, not sure how to impl :3
+*/
 layout(binding = 0) uniform sampler2D height_map;
 uniform uint    access_offset          = 0;         //offset for when generating multiple chunks, the unit is per chunck
 uniform ivec2   chunck_position       = ivec2(0);
@@ -33,11 +37,14 @@ void main(){
     vec2 tex_uv = vec2(l)/vec2(chunck_size);
     vec2 tex_size_inv = 1/vec2(textureSize(height_map, 0));
     vec2 sample_location = (tex_uv * ( 1-2*tex_size_inv )) + tex_size_inv;
-    vec2 global_uv      = (uv + abs(chunck_position));
-    if(chunck_position.x<0)
-        global_uv.x=-global_uv.x;
-    if(chunck_position.y<0)
-        global_uv.y=-global_uv.y;
+
+    vec2 chunck_sign = vec2(
+        chunck_position.x < 0.0 ? -1.0 : 1.0,
+        chunck_position.y < 0.0 ? -1.0 : 1.0
+    );
+    vec2 global_uv      = (uv + abs(chunck_position)) * chunck_sign;
+
+        
     vec2 xz_position    = uv*chunck_size + chunck_size*chunck_position;
     float y_position    = texture(height_map, sample_location).x;
     uint offset         = (access_offset*chunck_size.x*chunck_size.y + l.x + l.y * chunck_size.x)*stride;

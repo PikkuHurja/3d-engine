@@ -19,6 +19,6 @@ void main(){
     float fl = floor(LocalPosition.y);
     float fr = LocalPosition.y-fl;
     int f = int(abs(fl))%3;
-    //output_color = vec4(vec3(f == 0, f==1, f==2)*fr, 1);
-    output_color = vec4(vec3(fract(abs(UV)), 1), 1);
+    output_color = vec4(vec3(f == 0, f==1, f==2)*fr, 1);
+    //output_color = vec4(vec3(fr), 1);
 }
