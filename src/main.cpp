@@ -350,7 +350,7 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     size_t index = 0;
     for(int y = 0; y <= 2; y++){
         for(int x = 0; x <= 2; x++){
-            terr.gen(index++, glm::ivec2{x, y}, 256);
+            terr.gen(index++, glm::ivec2{x, y}, 256, seed);
         }
     }
 
@@ -396,6 +396,7 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
             lod = std::clamp(lod-1, 0, 3);
             std::cout << "lod: " << lod << '\n';
         }else if(event->key.key == SDLK_R){
+            seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
             //terrain = shader::load("ass/shaders/terrain");
         }
     }
