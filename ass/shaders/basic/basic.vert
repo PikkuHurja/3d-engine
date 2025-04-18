@@ -46,6 +46,7 @@ void main(){
         //basic passthoughs
     LocalPosition = aVertex;
     UV = aUV;
+    Normal = aNormal;
 
 
         ////////////// INSTANCE MAPPING //////////////

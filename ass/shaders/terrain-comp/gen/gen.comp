@@ -15,6 +15,9 @@ uniform float   height_map_strenght     = 10;
 const uint stride           = 4*3 + 2;
 const uint position_offset  = 0;
 const uint uv_offset        = 3;
+const uint normal_offset    = 5;
+const uint tangent_offset   = 8;
+const uint bitangent_offset = 11;
 layout(std430, binding = 0) writeonly buffer chunk{
     float chunk_data[];
 };
@@ -160,4 +163,38 @@ void main(){
 
     chunk_data[offset+uv_offset]    =  global_uv.x;
     chunk_data[offset+uv_offset+1]  =  global_uv.y;
+
+    const float delta =  1.f/(vertex_count-1.f);
+    float extra_samples[4];
+    extra_samples[0] = calculate_height(global_uv-vec2(delta, 0));
+    extra_samples[1] = calculate_height(global_uv+vec2(delta, 0));
+    extra_samples[2] = calculate_height(global_uv-vec2(0, delta));
+    extra_samples[3] = calculate_height(global_uv+vec2(0, delta));
+
+    vec3 dx = vec3(2.0 * delta * chunck_size, extra_samples[1] - extra_samples[0], 0.0);
+    vec3 dz = vec3(0.0, extra_samples[3] - extra_samples[2], dx.x);
+    
+
+    vec3 normal = normalize(cross(dx,dz));
+    vec3 tangent = normalize(dx);
+    vec3 bitangent = normalize(dz);
+
+    
+    chunk_data[offset+normal_offset]    = normal.x;
+    chunk_data[offset+normal_offset+1]  = normal.y;
+    chunk_data[offset+normal_offset+2]  = normal.z;
+
+    chunk_data[offset+tangent_offset]   = tangent.x;
+    chunk_data[offset+tangent_offset+1] = tangent.y;
+    chunk_data[offset+tangent_offset+2] = tangent.z;
+
+    chunk_data[offset+bitangent_offset]     = bitangent.x;
+    chunk_data[offset+bitangent_offset+1]   = bitangent.y;
+    chunk_data[offset+bitangent_offset+2]   = bitangent.z;
+
+
+    //tangent = normalize(tangent - dot(tangent, normal) * normal);
+    //vec3 bitangent = cross(normal, tangent);
+
+
 }

@@ -273,6 +273,8 @@ gl::framebuffer fb1{nullptr};
 int frequency = 1;
 int seed = 1;
 
+uint vtx_count = 1<<7;
+
 bool should_capture_cursor = false;
 void capture_cursor(appstate_t& state, bool on){
     should_capture_cursor = on;
@@ -305,7 +307,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
 
     shader::terrain_gen_t::refresh_shader();
-    terr.create(256, 1<<10);
+    terr.create(vtx_count,1<<10);
 
     return SDL_APP_CONTINUE;
 }catch(const std::exception& e){
@@ -317,7 +319,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 void update_camera(){
     const bool* keystate = SDL_GetKeyboardState(nullptr);
     const float dt = appstate_t::_S_ActiveState->time.delta_timef();
-    const float slow = 60 * dt;
+    const float slow = 1 * dt;
     const float fast = 256 * dt;
     float movement = keystate[SDL_SCANCODE_LSHIFT] ? fast : slow;
     if(keystate[SDL_SCANCODE_W]){
@@ -350,7 +352,7 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     size_t index = 0;
     for(int y = 0; y <= 2; y++){
         for(int x = 0; x <= 2; x++){
-            terr.gen(index++, glm::ivec2{x, y}, 256, seed);
+            terr.gen(index++, glm::ivec2{x, y}, (1<<9)/2, seed);
         }
     }
 
@@ -390,11 +392,13 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
         }else if(event->key.key == SDLK_L){
             capture_cursor(state, true);
         }else if(event->key.key == SDLK_UP){
-            lod = std::clamp(lod+1, 0, 3);
-            std::cout << "lod: " << lod << '\n';
+            vtx_count--;
+            std::cout << "vtx_count: " << vtx_count << '\n';
+            terr.create(vtx_count, 1<<10);
         }else if(event->key.key == SDLK_DOWN){
-            lod = std::clamp(lod-1, 0, 3);
-            std::cout << "lod: " << lod << '\n';
+            vtx_count++;
+            std::cout << "vtx_count: " << vtx_count << '\n';
+            terr.create(vtx_count, 1<<10);
         }else if(event->key.key == SDLK_R){
             seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
             //terrain = shader::load("ass/shaders/terrain");
