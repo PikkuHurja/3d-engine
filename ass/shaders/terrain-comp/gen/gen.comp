@@ -7,10 +7,14 @@ layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0) uniform sampler2D height_map;
 uniform uint    access_offset           = 0;         //offset for when generating multiple chunks, the unit is per chunck
 uniform ivec2   chunck_position         = ivec2(0);
-uniform uvec2   chunck_size             = ivec2(0); //[0, 1] (chunk should include these verticies, yes there are double verticies, but its a price im willing to pay rn)
+uniform uint    vertex_count            = 32; //[0, 1] (chunk should include these verticies, yes there are double verticies, but its a price im willing to pay rn)
+uniform float   chunck_size             = 32;
 uniform float   height_map_strenght     = 10;
-uniform uint    seed                    = 0;
+
     //ye we doing the fucky wucky with this one.... might as well kms ig
+const uint stride           = 4*3 + 2;
+const uint position_offset  = 0;
+const uint uv_offset        = 3;
 layout(std430, binding = 0) writeonly buffer chunk{
     float chunk_data[];
 };
@@ -23,23 +27,22 @@ vec3 aBitangent
 
 vec2 aUV; //will also store the world coordinates
 */
-const uint stride = 4*3 + 2;
-const uint position_offset = 0;
-const uint uv_offset = 3;
+
 
 /// PERLIN FRACTAL NOISE
 
-uniform float frequency = 1;
-uniform int octave_count = 12;
-uniform float persistence = 0.5;
-uniform float lacunarity = 2.0;
+uniform uint    noise_seed          = 0;
+uniform float   noise_frequency     = 0.2;
+uniform int     noise_octave_count  = 12;
+uniform float   noise_persistence   = 0.5;
+uniform float   noise_lacunarity    = 2.0;
 
 // implementation of MurmurHash (https://sites.google.com/site/murmurhash/) for a 
 // single unsigned integer.
 
-uint hash(uint x, uint seed) {
+uint hash(uint x, uint noise_seed) {
     const uint m = 0x5bd1e995U;
-    uint hash = seed;
+    uint hash = noise_seed;
     // process input
     uint k = x;
     k *= m;
@@ -57,9 +60,9 @@ uint hash(uint x, uint seed) {
 // implementation of MurmurHash (https://sites.google.com/site/murmurhash/) for a  
 // 2-dimensional unsigned integer input vector.
 
-uint hash(uvec2 x, uint seed){
+uint hash(uvec2 x, uint noise_seed){
     const uint m = 0x5bd1e995U;
-    uint hash = seed;
+    uint hash = noise_seed;
     // process first vector element
     uint k = x.x; 
     k *= m;
@@ -103,27 +106,27 @@ vec2 fade(vec2 t) {
 	return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
 }
 
-float perlinNoise(vec2 position, uint seed) {
+float perlinNoise(vec2 position, uint noise_seed) {
     vec2 floorPosition = floor(position);
     vec2 fractPosition = position - floorPosition;
     uvec2 cellCoordinates = uvec2(floorPosition);
-    float value1 = dot(gradientDirection(hash(cellCoordinates, seed)), fractPosition);
-    float value2 = dot(gradientDirection(hash((cellCoordinates + uvec2(1, 0)), seed)), fractPosition - vec2(1.0, 0.0));
-    float value3 = dot(gradientDirection(hash((cellCoordinates + uvec2(0, 1)), seed)), fractPosition - vec2(0.0, 1.0));
-    float value4 = dot(gradientDirection(hash((cellCoordinates + uvec2(1, 1)), seed)), fractPosition - vec2(1.0, 1.0));
+    float value1 = dot(gradientDirection(hash(cellCoordinates, noise_seed)), fractPosition);
+    float value2 = dot(gradientDirection(hash((cellCoordinates + uvec2(1, 0)), noise_seed)), fractPosition - vec2(1.0, 0.0));
+    float value3 = dot(gradientDirection(hash((cellCoordinates + uvec2(0, 1)), noise_seed)), fractPosition - vec2(0.0, 1.0));
+    float value4 = dot(gradientDirection(hash((cellCoordinates + uvec2(1, 1)), noise_seed)), fractPosition - vec2(1.0, 1.0));
     return interpolate(value1, value2, value3, value4, fade(fractPosition));
 }
 
 float perlinNoise(vec2 position) {
     float value = 0.0;
     float amplitude = 1.0;
-    float currentFrequency = float(frequency);
-    uint currentSeed = seed;
-    for (int i = 0; i < octave_count; i++) {
-        currentSeed = hash(currentSeed, 0x0U); // create a new seed for each octave
+    float currentFrequency = noise_frequency;
+    uint currentSeed = noise_seed;
+    for (int i = 0; i < noise_octave_count; i++) {
+        currentSeed = hash(currentSeed, 0x0U); // create a new noise_seed for each octave
         value += perlinNoise(position * currentFrequency, currentSeed) * amplitude;
-        amplitude *= persistence;
-        currentFrequency *= lacunarity;
+        amplitude *= noise_persistence;
+        currentFrequency *= noise_lacunarity;
     }
     return value;
 }
@@ -136,13 +139,10 @@ float calculate_height(vec2 world_xy){
 
 void main(){
     uvec2 l = gl_GlobalInvocationID.xy;
-    if(l.x >= chunck_size.x || l.y >=chunck_size.y) return;
+    if(l.x >= vertex_count || l.y >= vertex_count) return;
 
         // the definition of shenanigans
-    vec2 uv = vec2(l)/vec2(chunck_size-1);
-    vec2 tex_uv = vec2(l)/vec2(chunck_size);
-    vec2 tex_size_inv = 1/vec2(textureSize(height_map, 0));
-    vec2 sample_location = (tex_uv * ( 1-2*tex_size_inv )) + tex_size_inv;
+    vec2 uv         = vec2(l)/vec2(vertex_count-1);
 
     vec2 chunck_sign = vec2(
         chunck_position.x < 0.0 ? -1.0 : 1.0,
@@ -150,10 +150,9 @@ void main(){
     );
     vec2 global_uv      = (uv + abs(chunck_position)) * chunck_sign;
 
-        
-    vec2 xz_position    = uv*chunck_size + chunck_size*chunck_position;
-    float y_position    = calculate_height(global_uv);
-    uint offset         = (access_offset*chunck_size.x*chunck_size.y + l.x + l.y * chunck_size.x)*stride;
+    vec2    xz_position     = global_uv*chunck_size;
+    float   y_position      = calculate_height(global_uv);
+    uint    offset          = (access_offset*vertex_count*vertex_count + l.x + l.y * vertex_count)*stride;
     
     chunk_data[offset+position_offset]      = xz_position.x;
     chunk_data[offset+position_offset+1]    = y_position;

@@ -10,8 +10,15 @@ namespace shader {
     
         ((access_offset, uint))
         ((chunck_position, glm::ivec2))
-        ((chunck_size, glm::uvec2))
+        ((vertex_count, uint))
+        ((chunck_size, float))
         ((height_map_strenght, float))
+        
+        ((noise_seed, uint))
+        ((noise_frequency, float))
+        ((noise_octave_count, int))
+        ((noise_persistence, float))
+        ((noise_lacunarity, float))
     
     , {})
 

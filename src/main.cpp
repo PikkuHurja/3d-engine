@@ -72,7 +72,8 @@ struct terrain{
     gl::vertex_array vao{nullptr};
     gl::basic_buffer vbo{nullptr};
     gl::basic_buffer ibo{nullptr}; // index buffer
-    uint             chunck_size    = 0;
+    float            chunck_size    = 0;
+    uint             chunck_side_vertex_count    = 0;
     uint             chunck_count   = 0;
     uint             indecie_count  = 0;
 
@@ -86,26 +87,27 @@ struct terrain{
         glm::vec3 n, t, bt;
     };
 
-    void create(uint cs, uint cc = 9){
+    void create(uint vtx, float cs, uint cc = 9){
         vao.create();
         vao.bind();
         chunck_count = cc;
         chunck_size = cs;
+        chunck_side_vertex_count = vtx;
 
 
 
         ibo.create();
         ibo.bind(gl::enums::buffer::ELEMENT_ARRAY_BUFFER);
-        uint subcs = cs-1;
-        indecie_count = subcs*subcs*6;
+        uint sub_vtx = vtx-1;
+        indecie_count = sub_vtx*sub_vtx*6;
         std::unique_ptr<uint[]> indecie_data{new uint[indecie_count]()};
 
         size_t index = 0;
-        for(uint y = 0; y < subcs; y++){
-            for(uint x = 0; x < subcs; x++){
-                uint    top_l = y*cs+x, 
+        for(uint y = 0; y < sub_vtx; y++){
+            for(uint x = 0; x < sub_vtx; x++){
+                uint    top_l = y*vtx+x, 
                         top_r = top_l+1, 
-                        bottom_l = top_l+cs, //(y + 1) * vertex_count.x + x;
+                        bottom_l = top_l+vtx, //(y + 1) * vertex_count.x + x;
                         bottom_r = bottom_l+1;
 
 
@@ -122,14 +124,14 @@ struct terrain{
             }
         }
 
-        count_array.reset(new GLsizei[cc]);
-        indecies_array.reset(new size_t[cc]);
-        indecie_begin_array.reset(new GLint[cc]);
-        for(size_t i = 0; i < cc; i++){
+        count_array.reset(new GLsizei[chunck_count]);
+        indecies_array.reset(new size_t[chunck_count]);
+        indecie_begin_array.reset(new GLint[chunck_count]);
+        for(size_t i = 0; i < chunck_count; i++){
 
             count_array[i] = indecie_count;
             indecies_array[i] = 0;
-            indecie_begin_array[i]=i*cs*cs;
+            indecie_begin_array[i]=i*vtx*vtx;
 
         }
 
@@ -137,7 +139,7 @@ struct terrain{
 
         vbo.create();
         vbo.bind(gl::enums::buffer::type::ARRAY_BUFFER);
-        vbo.data(nullptr, sizeof(data)*cs*cs*chunck_count, gl::enums::buffer::STATIC_DRAW);
+        vbo.data(nullptr, sizeof(data)*vtx*vtx*chunck_count, gl::enums::buffer::STATIC_DRAW);
 
         vbo.attribute(gl::shader_spec::aVertex, 3, gl::enums::buffer::FLOAT, sizeof(data), false, 0);
         vbo.attribute(gl::shader_spec::aUV, 2, gl::enums::buffer::FLOAT, sizeof(data), false, sizeof(float)*(3));
@@ -155,18 +157,35 @@ struct terrain{
         ibo.unbind(gl::enums::buffer::ELEMENT_ARRAY_BUFFER);
     }
 
-    void gen(uint index, glm::ivec2 chunck_position, float strenght = 50){
+    void gen(
+        const uint       &index, 
+        const glm::ivec2 &chunck_position, 
+        //const uint       &vertex_count,  //stored in the class
+        //const float      &chunck_size, //stored in the class
+        const float      &height_map_strenght = 1, 
+        const uint       &noise_seed = 0, 
+        const float      &noise_frequency = .2, 
+        const int        &noise_octave_count = 12, 
+        const float      &noise_persistence = 0.5, 
+        const float      &noise_lacunarity = 2.0
+    ){
         if(!sh::_S_Program) sh::refresh_shader();
-        sh::use();
-        sh::set_access_offset(index);
-        sh::set_chunck_position(chunck_position);
-        sh::set_chunck_size(glm::uvec2{chunck_size});
-        sh::set_height_map_strenght(strenght );
+        sh::use(
+            index, 
+            chunck_position, 
+            chunck_side_vertex_count,
+            chunck_size, 
+            height_map_strenght, 
+            noise_seed, 
+            noise_frequency, 
+            noise_octave_count, 
+            noise_persistence, 
+            noise_lacunarity
+        );
 
         vbo.bind(gl::enums::buffer::SHADER_STORAGE_BUFFER);
         vbo.bind_base(gl::enums::buffer::SHADER_STORAGE_BUFFER, 0);
-
-        sh::dispatch(glm::uvec2{chunck_size});
+        sh::dispatch(glm::uvec2{chunck_side_vertex_count});
     }
 
     void draw(){
@@ -179,7 +198,9 @@ struct terrain{
     
     void draw_all(){
         vao.bind();
+        //glPolygonMode( GL_FRONT_AND_BACK, GL_POINT );
         glMultiDrawElementsBaseVertex(GL_TRIANGLES, count_array.get(), GL_UNSIGNED_INT, reinterpret_cast<const void**>(indecies_array.get()), chunck_count, indecie_begin_array.get());
+        //glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
     }
 
 } terr;
@@ -273,23 +294,8 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     state.init();
 
     basic = shader::load("ass/shaders/basic");
-    //terrain = shader::load("ass/shaders/terrain");
-    //passthru = shader::load("ass/shaders/passthru");
-
-    a_plane[0] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{16});
-    //a_plane[1] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<9});
-    //a_plane[2] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<8});
-    //a_plane[3] = new plane_t(glm::vec3{0}, glm::vec2{1}, glm::uvec2{1<<7});
-    
-
 
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
-
-    fb0.create();
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<2}, gl::enums::texture::format_storage::STORAGE_R8, 1);
-    tex0.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_LINEAR);
-    tex0.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
-    fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
 
     for(auto& e : a_tex){
         e.create(gl::enums::texture::Texture2D, glm::uvec2{1<<2}, gl::enums::texture::format_storage::STORAGE_R8, 1);
@@ -297,20 +303,10 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
         e.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 
-    noise::perlin_t::refresh_shader();
-    noise::value_t::refresh_shader();
-
-
 
     shader::terrain_gen_t::refresh_shader();
-    terr.create(64);
+    terr.create(256, 1<<10);
 
-    //fb1.create();
-    //tex1.create(gl::enums::texture::Texture2D, glm::uvec2{1<<6}, gl::enums::texture::format_storage::STORAGE_R8, 1);
-    //fb1.attach(tex1, gl::enums::framebuffer::COLOR_ATTACHMENT0);
-    //fb0.blit(fb1, glm::ivec2{0}, glm::ivec2{tex0.texture_size()}, glm::ivec2{0}, glm::ivec2{tex1.texture_size()});
-
-    //capture_cursor(state, true);
     return SDL_APP_CONTINUE;
 }catch(const std::exception& e){
     std::cerr << "Uncaught exception at SDL_AppInit: " << e.what() << '\n'; 
@@ -321,8 +317,8 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 void update_camera(){
     const bool* keystate = SDL_GetKeyboardState(nullptr);
     const float dt = appstate_t::_S_ActiveState->time.delta_timef();
-    const float slow = 1 * dt;
-    const float fast = 20 * dt;
+    const float slow = 60 * dt;
+    const float fast = 256 * dt;
     float movement = keystate[SDL_SCANCODE_LSHIFT] ? fast : slow;
     if(keystate[SDL_SCANCODE_W]){
         camera.translation() += movement*camera.forward();
@@ -351,28 +347,19 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     refresh_cursor(state);
     update_camera();
 
-
-
-    for(size_t i = 0; i < terr.chunck_count; i++){
-        //noise::value_t::use();
-        //noise::value_t::set_seed(0);
-        //noise::value_t::set_chunk_position(glm::ivec2{i, 0});
-        //a_tex[i].bind_base(0, GL_WRITE_ONLY);
-        //noise::value_t::dispatch(glm::uvec2{tex0.texture_size()});
-        //gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
-        //gl::barrier(gl::enums::barriers::TEXTURE_FETCH);
-        terr.gen(i, glm::ivec2{i, 0}, 10);
+    size_t index = 0;
+    for(int y = 0; y <= 2; y++){
+        for(int x = 0; x <= 2; x++){
+            terr.gen(index++, glm::ivec2{x, y}, 256);
+        }
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    
     glEnable(GL_DEPTH_TEST);
 
-    
     basic.use();
     camera.bind();
     terr.draw_all();
-
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return SDL_APP_CONTINUE;
