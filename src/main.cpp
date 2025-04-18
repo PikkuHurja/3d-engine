@@ -155,20 +155,17 @@ struct terrain{
         ibo.unbind(gl::enums::buffer::ELEMENT_ARRAY_BUFFER);
     }
 
-    void gen(uint index, glm::ivec2 chunck_position, gl::texture* noise = nullptr){
+    void gen(uint index, glm::ivec2 chunck_position, float strenght = 50){
         if(!sh::_S_Program) sh::refresh_shader();
         sh::use();
         sh::set_access_offset(index);
         sh::set_chunck_position(chunck_position);
         sh::set_chunck_size(glm::uvec2{chunck_size});
-        sh::set_height_map_strenght(1);
+        sh::set_height_map_strenght(strenght );
 
         vbo.bind(gl::enums::buffer::SHADER_STORAGE_BUFFER);
         vbo.bind_base(gl::enums::buffer::SHADER_STORAGE_BUFFER, 0);
 
-        if(noise)
-            noise->bind(0);
-        
         sh::dispatch(glm::uvec2{chunck_size});
     }
 
@@ -249,6 +246,7 @@ float yaw       = 0;
 
 gl::texture tex0;
 gl::texture tex1;
+gl::texture a_tex[16];
 gl::framebuffer fb0{nullptr};
 gl::framebuffer fb1{nullptr};
 int frequency = 1;
@@ -288,10 +286,16 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
 
     fb0.create();
-    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<8}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+    tex0.create(gl::enums::texture::Texture2D, glm::uvec2{1<<2}, gl::enums::texture::format_storage::STORAGE_R8, 1);
     tex0.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_LINEAR);
     tex0.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
     fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
+
+    for(auto& e : a_tex){
+        e.create(gl::enums::texture::Texture2D, glm::uvec2{1<<2}, gl::enums::texture::format_storage::STORAGE_R8, 1);
+        e.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_LINEAR);
+        e.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
 
     noise::perlin_t::refresh_shader();
     noise::value_t::refresh_shader();
@@ -350,14 +354,14 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
 
     for(size_t i = 0; i < terr.chunck_count; i++){
-        noise::value_t::use();
-        noise::value_t::set_seed(0);
-        noise::value_t::set_chunk_position(glm::ivec2{0, 0});
-        tex0.bind_base(0, GL_WRITE_ONLY);
-        noise::value_t::dispatch(glm::uvec2{tex0.texture_size()});
-        gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
-        gl::barrier(gl::enums::barriers::TEXTURE_FETCH);
-        terr.gen(i, glm::ivec2{i, 0}, &tex0);
+        //noise::value_t::use();
+        //noise::value_t::set_seed(0);
+        //noise::value_t::set_chunk_position(glm::ivec2{i, 0});
+        //a_tex[i].bind_base(0, GL_WRITE_ONLY);
+        //noise::value_t::dispatch(glm::uvec2{tex0.texture_size()});
+        //gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
+        //gl::barrier(gl::enums::barriers::TEXTURE_FETCH);
+        terr.gen(i, glm::ivec2{i, 0}, 10);
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -365,17 +369,10 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     glEnable(GL_DEPTH_TEST);
 
     
-    //terrain.use();
-    //camera.bind();
-    //tex0.bind(0);
     basic.use();
+    camera.bind();
     terr.draw_all();
 
-    //terr.vao.bind();
-    //glPointSize(3.2);
-    //glDrawArrays(GL_POINTS, 0, terr.chunck_size*terr.chunck_size);
-    //glDrawArrays(GL_LINE_STRIP, 0, terr.chunck_size*terr.chunck_size);
-    //glDrawArrays(GL_TRIANGLES, 0, terr.chunck_size*terr.chunck_size);
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return SDL_APP_CONTINUE;
