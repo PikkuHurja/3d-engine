@@ -161,7 +161,7 @@ struct terrain{
         sh::set_access_offset(index);
         sh::set_chunck_position(chunck_position);
         sh::set_chunck_size(glm::uvec2{chunck_size});
-        sh::set_height_map_strenght(99);
+        sh::set_height_map_strenght(1);
 
         vbo.bind(gl::enums::buffer::SHADER_STORAGE_BUFFER);
         vbo.bind_base(gl::enums::buffer::SHADER_STORAGE_BUFFER, 0);
@@ -294,12 +294,8 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     fb0.attach(tex0, gl::enums::framebuffer::COLOR_ATTACHMENT0);
 
     noise::perlin_t::refresh_shader();
-    noise::perlin_t::use();
-    noise::perlin_t::set_frequency(0.25);
-    noise::perlin_t::set_seed(0);
-    tex0.bind_base(0, GL_WRITE_ONLY);
-    noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
-    gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
+    noise::value_t::refresh_shader();
+
 
 
     shader::terrain_gen_t::refresh_shader();
@@ -354,12 +350,13 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
 
     for(size_t i = 0; i < terr.chunck_count; i++){
-        noise::perlin_t::use();
-        noise::perlin_t::set_frequency(0.1f);
-        noise::perlin_t::set_seed(i);
+        noise::value_t::use();
+        noise::value_t::set_seed(0);
+        noise::value_t::set_chunk_position(glm::ivec2{0, 0});
         tex0.bind_base(0, GL_WRITE_ONLY);
-        noise::perlin_t::dispatch(glm::uvec2{tex0.texture_size()});
+        noise::value_t::dispatch(glm::uvec2{tex0.texture_size()});
         gl::barrier(gl::enums::barriers::SHADER_IMAGE_ACCESS);
+        gl::barrier(gl::enums::barriers::TEXTURE_FETCH);
         terr.gen(i, glm::ivec2{i, 0}, &tex0);
     }
 
