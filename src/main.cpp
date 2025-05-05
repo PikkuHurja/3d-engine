@@ -5,6 +5,8 @@
 #include "camera/orthographic.hpp"
 #include "camera/perspective.hpp"
 #include "camera/projection.hpp"
+#include "cubemap/cube-map.hpp"
+#include "cubemap/shadow-map.hpp"
 #include "draw/draw.hpp"
 #include "gl/buffer.hpp"
 #include "gl/buffer_enums.hpp"
@@ -206,74 +208,24 @@ struct terrain{
 } terr;
 
 camera_t camera{nullptr};
-/*
-gl::vertex_array vao{nullptr};
-gl::typed_buffer_t<gl::enums::buffer::ARRAY_BUFFER> vbo{nullptr};
-size_t vertex_count = 0;
+camera_t sh_camera{nullptr};
 
-    gl::program terrain_tess{nullptr};
-    terrain_tess = shader::load("ass/shaders/terrain-tess");
-    vao.create();
-    vao.bind();
-    vbo.create();
-    {
-        std::vector<glm::vec3> verts;
-        int gridSize = 64;
 
-        for (int z = 0; z <= gridSize; ++z) {
-            for (int x = 0; x <= gridSize; ++x) {
-                float x0 = ((float)x     / gridSize);
-                float x1 = ((float)(x+1) / gridSize);
-                float z0 = ((float)z     / gridSize);
-                float z1 = ((float)(z+1) / gridSize);
-
-                // Define 1 quad (patch of 4 vertices)
-                verts.push_back(glm::vec3(x0, 0.f, z0)); // bottom-left
-                verts.push_back(glm::vec3(x1, 0.f, z0)); // bottom-right
-                verts.push_back(glm::vec3(x1, 0.f, z1)); // top-right
-                verts.push_back(glm::vec3(x0, 0.f, z1)); // top-left
-            }
-        }
-        vertex_count = verts.size();
-        vbo.bind();
-        vbo.data(verts.data(), sizeof(glm::vec3) * verts.size(), gl::enums::buffer::STATIC_DRAW);
-
-        vbo.attribute(gl::shader_spec::aVertex, 3, gl::enums::buffer::FLOAT);
-        vao.enable_attribute(gl::shader_spec::aVertex);
-        vao.unbind();
-        vbo.unbind();
-    }
-
-    terrain_tess.use();
-    camera.bind();
-    tex0.bind(0);
-    glPatchParameteri(GL_PATCH_VERTICES, 4);
-    vao.bind();
-    gl::draw_one(gl::enums::PATCHES, 0, vertex_count);
-
-*/
-
-//gl::program terrain{nullptr};
-
+glm::vec3 sh_map_position{233.559, 32.0134, 267.112};
+gl::framebuffer sh_fb;
+shadow_map sh_map;
+cube_map cb_map;
 gl::program basic{nullptr};
-//gl::program passthru{nullptr};
-//gl_mesh<HAS_VERTICIES, STORES_VERTEX_COUNT>*     p_plane;
-    //plane levels of detail
-plane_t* a_plane[4];
+
 int lod = 0;
+
 
 float pitch     = 0;
 float yaw       = 0;
-
-gl::texture tex0;
-gl::texture tex1;
-gl::texture a_tex[16];
-gl::framebuffer fb0{nullptr};
-gl::framebuffer fb1{nullptr};
 int frequency = 1;
 int seed = 1;
-
 uint vtx_count = 1<<7;
+
 
 bool should_capture_cursor = false;
 void capture_cursor(appstate_t& state, bool on){
@@ -297,17 +249,16 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
     basic = shader::load("ass/shaders/basic");
 
-    camera.create(transform{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection{perspective::make_default()});
-
-    for(auto& e : a_tex){
-        e.create(gl::enums::texture::Texture2D, glm::uvec2{1<<2}, gl::enums::texture::format_storage::STORAGE_R8, 1);
-        e.parameter(gl::enums::texture::parameter::TEXTURE_MIN_FILTER, GL_LINEAR);
-        e.parameter(gl::enums::texture::parameter::TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
+    camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective::make_default()});
+    sh_camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective::make_default()});
 
 
     shader::terrain_gen_t::refresh_shader();
     terr.create(vtx_count,1<<10);
+
+    sh_map.create(1<<10);
+    cb_map.create(1<<10, gl::enums::texture::STORAGE_RGB8);
+    sh_fb.create();
 
     return SDL_APP_CONTINUE;
 }catch(const std::exception& e){
@@ -346,22 +297,53 @@ uint i = 0;
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
     state.time.update();
-    refresh_cursor(state);
-    update_camera();
 
-    size_t index = 0;
-    for(int y = 0; y <= 2; y++){
-        for(int x = 0; x <= 2; x++){
-            terr.gen(index++, glm::ivec2{x, y}, (1<<9)/2, seed);
+       
+    {   
+        size_t index = 0;
+        for(int y = 0; y <= 2; y++){
+            for(int x = 0; x <= 2; x++){
+                terr.gen(index++, glm::ivec2{x, y}, (1<<9)/2, seed);
+            }
         }
     }
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
+    {   // draw to shmap
+        glViewport(0, 0, sh_map.texture().texture_size().x, sh_map.texture().texture_size().y);
+        for(size_t i = 0; i < cube_map::face_count; i++){
+            sh_map.set_camera(sh_camera, sh_map_position, i);
+            sh_camera.refresh();
+            sh_fb.attach(sh_map.texture(), gl::enums::framebuffer::DEPTH_ATTACHMENT, i, 0);
+            sh_fb.attach(cb_map.texture(), gl::enums::framebuffer::COLOR_ATTACHMENT0, i, 0);
+            if (sh_fb.status() != gl::enums::framebuffer::status::COMPLETE)
+                std::cerr << "Incomplete framebuffer: " << sh_fb.status() << '\n';
+            
+            sh_fb.bind();
+            glClear(GL_DEPTH_BUFFER_BIT);
+            glEnable(GL_DEPTH_TEST);
 
-    basic.use();
-    camera.bind();
-    terr.draw_all();
+            basic.use();
+            sh_camera.bind();
+            terr.draw_all();
+        }
+        sh_fb.unbind();
+        auto wsz= state.core.p_window->GetWindowSize();
+        glViewport(0, 0, wsz.x, wsz.y);
+    }
+    {   // draw to screen
+        
+        refresh_cursor(state);
+        //update_camera();
+        sh_map.set_camera(camera, sh_map_position, lod);
+        camera.refresh();
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+
+        basic.use();
+        camera.bind();
+        terr.draw_all();
+    }
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return SDL_APP_CONTINUE;
@@ -392,16 +374,21 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
         }else if(event->key.key == SDLK_L){
             capture_cursor(state, true);
         }else if(event->key.key == SDLK_UP){
-            vtx_count--;
-            std::cout << "vtx_count: " << vtx_count << '\n';
-            terr.create(vtx_count, 1<<10);
+            lod=(lod+1)%6;
+            //vtx_count--;
+            //std::cout << "vtx_count: " << vtx_count << '\n';
+            //terr.create(vtx_count, 1<<10);
         }else if(event->key.key == SDLK_DOWN){
-            vtx_count++;
-            std::cout << "vtx_count: " << vtx_count << '\n';
-            terr.create(vtx_count, 1<<10);
+            if(lod <= 0) lod = 5;
+            else lod--;
+            //vtx_count++;
+            //std::cout << "vtx_count: " << vtx_count << '\n';
+            //terr.create(vtx_count, 1<<10);
         }else if(event->key.key == SDLK_R){
             seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
             //terrain = shader::load("ass/shaders/terrain");
+        }else if(event->key.key == SDLK_P){
+            std::cout << "position" << camera.v_translation << '\n';
         }
     }
 

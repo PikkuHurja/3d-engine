@@ -9,13 +9,13 @@
 #include <glm/ext/vector_float3.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-struct transform{
+struct transform_t{
     glm::vec3 v_translation =   glm::vec3{0.f};
     glm::quat v_rotation    =   glm::quat{1.f, 0, 0, 0};
     glm::vec3 v_scale       =   glm::vec3{1.f};
 
-    inline bool operator ==(const transform& t)const{return t.v_translation == v_translation && t.v_rotation == v_rotation && t.v_scale == v_scale;}
-    inline bool operator !=(const transform& t)const{return !(t == *this);}
+    inline bool operator ==(const transform_t& t)const{return t.v_translation == v_translation && t.v_rotation == v_rotation && t.v_scale == v_scale;}
+    inline bool operator !=(const transform_t& t)const{return !(t == *this);}
 
 
         ////////////////////////////// GET //////////////////////////////

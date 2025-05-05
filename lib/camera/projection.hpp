@@ -3,7 +3,7 @@
 #include "perspective.hpp"
 #include <variant>
 
-struct projection : std::variant<std::nullptr_t, orthographic, perspective>{
+struct projection_t : std::variant<std::nullptr_t, orthographic, perspective>{
     enum projection_type{
         NONE,
         ORTHOGRAPHIC,
@@ -14,7 +14,7 @@ struct projection : std::variant<std::nullptr_t, orthographic, perspective>{
         return static_cast<enum projection_type>(v::index());
     }
     using v = std::variant<std::nullptr_t, orthographic, perspective>;
-    projection():v{perspective::make_default()}{}
+    projection_t():v{perspective::make_default()}{}
     using v::variant;
 
     glm::mat4 projection_matrix()const{

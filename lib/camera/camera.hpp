@@ -25,7 +25,7 @@
 
 //using ubCamera_t = gl::uniform_buffer<glm::vec3,glm::vec3,glm::vec3,glm::vec3,glm::mat4,glm::mat4,glm::mat4,glm::mat4,glm::mat4,glm::mat4>;
     //problem: position and such are stored twice...
-struct camera_t : transform, projection{
+struct camera_t : transform_t, projection_t{
     using  buffer = gl::uniform_buffer<
         glm::vec3,
         glm::vec3,
@@ -54,15 +54,25 @@ struct camera_t : transform, projection{
         PROJECTION_VIEW,
         PROJECTION_VIEW_INVERSE,
     };
-
+    camera_t& operator=(const transform_t& t){
+        static_cast<transform_t&>(*this) = t;
+        return *this;
+    }
+    camera_t& operator=(const projection_t& p){
+        static_cast<projection_t&>(*this) = p;
+        return *this;
+    }
 
 
     camera_t(std::nullptr_t):gl_ub_camera{nullptr}{}
     camera_t():gl_ub_camera(gl::shader_spec::ubCamera){}
+    camera_t(const transform_t& t, const projection_t& p):camera_t(){
+        create(t, p);
+    }
 
-    void create(const transform& t, const projection& p){
-        static_cast<transform&>(*this) = t;
-        static_cast<projection&>(*this) = p;
+    void create(const transform_t& t, const projection_t& p){
+        static_cast<transform_t&>(*this) = t;
+        static_cast<projection_t&>(*this) = p;
         calculate(true);
         
         if(!gl_ub_camera){
@@ -88,25 +98,25 @@ struct camera_t : transform, projection{
 
         //returns if changed
     bool calculate(bool override = false){
-        bool transform_changed = gl_transform != static_cast<transform&>(*this);
-        bool projection_changed = gl_projection != static_cast<projection&>(*this);
+        bool transform_changed = gl_transform != static_cast<transform_t&>(*this);
+        bool projection_changed = gl_projection != static_cast<projection_t&>(*this);
 
         if(transform_changed || override){
 
             if(gl_transform.v_translation != v_translation || override){
-                gl_ub_camera.set<POSITION>(transform::translation());
+                gl_ub_camera.set<POSITION>(transform_t::translation());
             }
             
             if(gl_transform.v_rotation != v_rotation || override){
-                gl_ub_camera.set<DIRECTION_FORWARD_NORMALIZED>  (transform::forward()   );
-                gl_ub_camera.set<DIRECTION_UP_NORMALIZED>       (transform::upward()    );
-                gl_ub_camera.set<DIRECTION_RIGHT_NORMALIZED>    (transform::rightward() );
+                gl_ub_camera.set<DIRECTION_FORWARD_NORMALIZED>  (transform_t::forward()   );
+                gl_ub_camera.set<DIRECTION_UP_NORMALIZED>       (transform_t::upward()    );
+                gl_ub_camera.set<DIRECTION_RIGHT_NORMALIZED>    (transform_t::rightward() );
             }
             gl_ub_camera.set<VIEW_INVERSE>  (model_matrix());
             gl_ub_camera.set<VIEW>          (glm::inverse(gl_ub_camera.get<VIEW_INVERSE>()));
         }
         if(projection_changed || override){
-            gl_ub_camera.set<PROJECTION>(projection::projection_matrix());
+            gl_ub_camera.set<PROJECTION>(projection_t::projection_matrix());
             gl_ub_camera.set<PROJECTION_INVERSE>(glm::inverse(gl_ub_camera.get<PROJECTION>()));
         }
         if(transform_changed || projection_changed || override){
@@ -121,8 +131,8 @@ struct camera_t : transform, projection{
 
         //in gpu
     buffer      gl_ub_camera;
-    transform   gl_transform{glm::vec3{NAN,NAN,NAN}};
-    projection  gl_projection{nullptr};
+    transform_t   gl_transform{glm::vec3{NAN,NAN,NAN}};
+    projection_t  gl_projection{nullptr};
 
 };
 
