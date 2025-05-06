@@ -293,6 +293,46 @@ void update_camera(){
     camera.refresh();
 }
 
+
+void update_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
+    const bool* keystate = SDL_GetKeyboardState(nullptr);
+    const float dt = appstate_t::_S_ActiveState->time.delta_timef();
+    const float slow = 1 * dt;
+    const float fast = 64 * dt;
+    const float movement = keystate[SDL_SCANCODE_LSHIFT] ? fast : slow;
+
+    if(keystate[SDL_SCANCODE_UP]){
+        sh_map_position += movement*glm::vec3(0,1,0);
+    }else if(keystate[SDL_SCANCODE_DOWN]){
+        sh_map_position += movement*glm::vec3(0,-1,0);
+    }
+
+
+    glViewport(0, 0, sh_map.texture().texture_size().x, sh_map.texture().texture_size().y);
+    for(size_t i = 0; i < cube_map::face_count; i++){
+        sh_map.set_camera(sh_camera, sh_map_position, i);
+        sh_camera.refresh();
+        sh_fb.attach(sh_map.texture(), gl::enums::framebuffer::DEPTH_ATTACHMENT, i, 0);
+        sh_fb.attach(cb_map.texture(), gl::enums::framebuffer::COLOR_ATTACHMENT0, i, 0);
+        if (sh_fb.status() != gl::enums::framebuffer::status::COMPLETE)
+            std::cerr << "Incomplete framebuffer: " << sh_fb.status() << '\n';
+        
+        sh_fb.bind();
+        glClearColor(i<=1, i>1&&i<=3, i>3&&i<=5, 1);
+        glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+
+        basic.use();
+        sh_camera.bind();
+        terr.draw_all();
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+    glClearColor(0.1,0.1,0.1, 1);
+    sh_fb.unbind();
+    auto wsz= state.core.p_window->GetWindowSize();
+    glViewport(0, 0, wsz.x, wsz.y);
+}
+
 uint i = 0;
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
@@ -308,29 +348,7 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
         }
     }
 
-    {   // draw to shmap
-        glViewport(0, 0, sh_map.texture().texture_size().x, sh_map.texture().texture_size().y);
-        for(size_t i = 0; i < cube_map::face_count; i++){
-            sh_map.set_camera(sh_camera, sh_map_position, i);
-            sh_camera.refresh();
-            sh_fb.attach(sh_map.texture(), gl::enums::framebuffer::DEPTH_ATTACHMENT, i, 0);
-            sh_fb.attach(cb_map.texture(), gl::enums::framebuffer::COLOR_ATTACHMENT0, i, 0);
-            if (sh_fb.status() != gl::enums::framebuffer::status::COMPLETE)
-                std::cerr << "Incomplete framebuffer: " << sh_fb.status() << '\n';
-            
-            sh_fb.bind();
-            glClear(GL_DEPTH_BUFFER_BIT);
-            glEnable(GL_DEPTH_TEST);
-
-            basic.use();
-            sh_camera.bind();
-            terr.draw_all();
-        }
-        sh_fb.unbind();
-        auto wsz= state.core.p_window->GetWindowSize();
-        glViewport(0, 0, wsz.x, wsz.y);
-    }
-
+    update_cubemap(state);
 
     {   // draw to screen
         
@@ -344,12 +362,11 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
         basic.use();
         camera.bind();
-        if(int l = basic.location("cube_map"); l == -1)
-            std::cerr << "cube_map location was -1\n";
-        else{
-            sh_map.texture().bind(0);
-            basic.set(l, 0);
-        }
+        sh_map.texture().bind(0);
+        basic.set("cube_map", 0);
+        basic.set("cube_map_position", sh_map_position);
+        basic.set("near_z", cube_map::near_plane);
+        basic.set("far_z", cube_map::far_plane);
 
         terr.draw_all();
     }
@@ -382,7 +399,7 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
             capture_cursor(state, false);
         }else if(event->key.key == SDLK_L){
             capture_cursor(state, true);
-        }else if(event->key.key == SDLK_UP){
+        }/*else if(event->key.key == SDLK_UP){
             lod=(lod+1)%6;
             //vtx_count--;
             //std::cout << "vtx_count: " << vtx_count << '\n';
@@ -393,7 +410,8 @@ sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
             //vtx_count++;
             //std::cout << "vtx_count: " << vtx_count << '\n';
             //terr.create(vtx_count, 1<<10);
-        }else if(event->key.key == SDLK_R){
+        }*/
+        else if(event->key.key == SDLK_R){
             seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
             //terrain = shader::load("ass/shaders/terrain");
         }else if(event->key.key == SDLK_P){
