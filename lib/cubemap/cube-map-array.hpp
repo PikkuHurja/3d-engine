@@ -19,7 +19,7 @@ glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, tex, 0, layer);
 uniform samplerCubeArray cubemapArray;
 vec4 color = texture(cubemapArray, vec4(dir, float(cubemapIndex)));
 */
-struct cubemap_array{
+struct cube_map_array{
     gl::texture _M_CubemapTexture;
 
     inline void create(const glm::vec2& resolution, uint count, const gl::enums::texture::format_storage& storage_type){

@@ -54,9 +54,8 @@ void main(){
         ////////////// POSITION //////////////
 
     mat4 MPV = model_matrix * perspective_view;
-    vec4 wpos = MPV * vec4(aVertex, 1.f);
-    WorldPosition = wpos.xyz;
-    gl_Position = wpos;
+    WorldPosition = (model_matrix * vec4(aVertex, 1.f)).xyz;
+    gl_Position = MPV * vec4(aVertex, 1.f);
 
 
         ////////////// NORMAL MAPPING //////////////

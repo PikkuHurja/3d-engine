@@ -330,11 +330,13 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
         auto wsz= state.core.p_window->GetWindowSize();
         glViewport(0, 0, wsz.x, wsz.y);
     }
+
+
     {   // draw to screen
         
         refresh_cursor(state);
-        //update_camera();
-        sh_map.set_camera(camera, sh_map_position, lod);
+        update_camera();
+        //sh_map.set_camera(camera, sh_map_position, lod);
         camera.refresh();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -342,6 +344,13 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
 
         basic.use();
         camera.bind();
+        if(int l = basic.location("cube_map"); l == -1)
+            std::cerr << "cube_map location was -1\n";
+        else{
+            sh_map.texture().bind(0);
+            basic.set(l, 0);
+        }
+
         terr.draw_all();
     }
 

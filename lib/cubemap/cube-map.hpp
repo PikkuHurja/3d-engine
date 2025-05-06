@@ -47,7 +47,7 @@ struct cube_map{
 
     inline static constexpr uint face_count = 6;
     inline static constexpr float near_plane = 0.1;
-    inline static constexpr float far_plane  = 5000;
+    inline static constexpr float far_plane  = 500;
     inline static projection_t capture_projection{perspective{glm::radians(90.0f), 1.0f, near_plane, far_plane}};// = glm::perspective(glm::radians(90.0f), 1.0f, near_plane, far_plane);
 
 
