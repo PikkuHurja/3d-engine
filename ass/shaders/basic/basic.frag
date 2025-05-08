@@ -61,7 +61,7 @@ void main(){
     float sampled_depth = texture(cube_map, frag_to_light).r*(far_z-near_z) + near_z;
 
     // Apply bias to reduce shadow acne
-    float bias = 40;
+    float bias = 4;
     float light = clamp(1 - ((current_depth-bias) - sampled_depth), 0.f, 1.f);
     /*sampled_depth/far_z, current_depth/far_z, */
 
