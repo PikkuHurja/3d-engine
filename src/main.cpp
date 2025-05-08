@@ -19,8 +19,6 @@
 #include "gl/texture_enums.hpp"
 #include "gl/synchronization.hpp"
 #include "gl/vertex_array.hpp"
-#include "gl_mesh.hpp"
-#include "obj/plane.hpp"
 #include "obj/transform.hpp"
 #include "shader/load.hpp"
 #include <SDL3/SDL_error.h>
@@ -30,25 +28,25 @@
 #include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_scancode.h>
-#include <algorithm>
-#include <barrier>
 #include <cassert>
 #include <chrono>
-#include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <cstdlib>
 #include <exception>
+#include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/quaternion_float.hpp>
 #include <glm/ext/quaternion_geometric.hpp>
 #include <glm/ext/quaternion_trigonometric.hpp>
+#include <glm/ext/scalar_constants.hpp>
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_float4.hpp>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_uint2.hpp>
 #include <iostream>
+#include <limits>
 #include <memory>
+#include <span>
 #include <sys/types.h>
 #define SDL_MAIN_USE_CALLBACKS
 #define sdl_ext extern "C" 
@@ -207,15 +205,130 @@ struct terrain{
 
 } terr;
 
+
+struct rect2D{
+    glm::vec2 min;
+    glm::vec2 max;
+};
+struct rect3D{
+    glm::vec3 min;
+    glm::vec3 left;
+    glm::vec3 right;
+
+    inline void verticies(glm::vec3 vert[4])const{
+        vert[0] = min;
+        vert[1] = left;
+        vert[2] = left + right - min;
+        vert[3] = right;
+    }
+};
+    //i love to make everything so complicated
+    //instanced, ima kms ig
+    //nvm need an instancer
+struct rectangle{
+
+    struct in_gpu{
+        glm::vec3 verticies[4];
+        glm::vec2 uv[4] = {{0, 0}, {0, 1}, {1, 1}, {1, 0}};
+        /*
+            norm, binorm etc can be differentiated some other time
+        */
+        in_gpu(){}
+        in_gpu(const rect3D& r){r.verticies(verticies);}
+    };
+
+    
+    rect3D v_rect; // actual data
+
+    gl::vertex_array gl_vao{nullptr};
+    gl::basic_buffer gl_vbo{nullptr};
+    
+    inline void set(const rect3D& r){
+        v_rect = r;
+    }
+
+    inline void upload(){
+        glm::vec3 verticies[4];
+        v_rect.verticies(verticies);
+        gl_vbo.subdata(verticies, sizeof(verticies));
+    }
+
+    inline void create(const rect3D& r){
+        set(r);
+
+        if(!gl_vao)
+            gl_vao.create();
+        if(!gl_vbo){
+            gl_vbo.create();
+            create_storage();
+        }else{
+            upload();
+        }
+    }
+        //setup the model matricies beforehand 
+    inline void draw(){
+        gl_vao.bind();
+        gl::draw_one(gl::enums::drawmode::TRIANGLE_FAN, 0, 4);
+    }
+
+    inline rectangle(std::nullptr_t = nullptr){}
+    inline rectangle(const rect3D& r):v_rect(r), gl_vao(), gl_vbo(){
+        create_storage();
+    }
+
+protected:
+
+    inline void setup_attributes(){
+        gl_vao.bind();
+        gl_vbo.bind(gl::enums::buffer::ARRAY_BUFFER);
+        
+        gl_vao.enable_attribute(gl::shader_spec::aVertex);
+        gl_vbo.attribute(gl::shader_spec::aVertex, 3, gl::enums::buffer::FLOAT, sizeof(glm::vec3), false, 0);
+
+        gl_vao.enable_attribute(gl::shader_spec::aUV);
+        gl_vbo.attribute(gl::shader_spec::aUV, 2, gl::enums::buffer::FLOAT, sizeof(glm::vec2), false, 4 * sizeof(glm::vec3));
+        
+        gl_vao.unbind();
+        gl_vbo.unbind(gl::enums::buffer::ARRAY_BUFFER);
+    }
+
+    inline void create_storage(){
+        in_gpu data{v_rect};
+        gl_vbo.storage(&data, sizeof(data), gl::enums::buffer::DYNAMIC_STORAGE);
+        setup_attributes();
+    }
+
+};
+
+
+rectangle front{nullptr};
+rectangle back{nullptr};
+rectangle left{nullptr};
+rectangle right{nullptr};
+rectangle top{nullptr};
+rectangle bottom{nullptr};
+
+
+
+
 camera_t camera{nullptr};
 camera_t sh_camera{nullptr};
 
 
-glm::vec3 sh_map_position{233.559, 32.0134, 267.112};
+glm::vec3 sh_map_position{250, 30, 200};
 gl::framebuffer sh_fb;
 shadow_map sh_map;
 cube_map cb_map;
 gl::program basic{nullptr};
+
+/*
+    vec3  light_pos
+    float far_z
+    float near_z
+    mat4 shadowmap_matricies[6]
+    mat4 model_matrix
+*/
+gl::program linear_depth{nullptr};
 
 int lod = 0;
 
@@ -225,6 +338,26 @@ float yaw       = 0;
 int frequency = 1;
 int seed = 1;
 uint vtx_count = 1<<7;
+
+void create_cube(){
+    float size = 1;
+    glm::vec3 position{sh_map_position};
+    front.create(rect3D     {position + glm::vec3{-size, -size,  size},    position + glm::vec3{-size,  size,  size}, position + glm::vec3{ size, -size,  size}});
+    back.create(rect3D      {position + glm::vec3{-size, -size, -size},    position + glm::vec3{-size,  size, -size}, position + glm::vec3{ size, -size, -size}});
+    left.create(rect3D      {position + glm::vec3{-size, -size, -size},    position + glm::vec3{-size,  size, -size}, position + glm::vec3{-size, -size,  size}});
+    right.create(rect3D     {position + glm::vec3{ size, -size, -size},    position + glm::vec3{ size,  size, -size}, position + glm::vec3{ size, -size,  size}});
+    top.create(rect3D       {position + glm::vec3{-size,  size, -size},    position + glm::vec3{-size,  size,  size}, position + glm::vec3{ size,  size, -size}});
+    bottom.create(rect3D    {position + glm::vec3{-size, -size, -size},    position + glm::vec3{-size, -size,  size}, position + glm::vec3{ size, -size, -size}});
+}
+
+void draw_cube(){
+    front.draw();
+    back.draw();
+    left.draw();
+    right.draw();
+    top.draw();
+    bottom.draw();
+}
 
 
 bool should_capture_cursor = false;
@@ -248,17 +381,21 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     state.init();
 
     basic = shader::load("ass/shaders/basic");
+    linear_depth = shader::load("ass/shaders/linear-depth");
 
-    camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective::make_default()});
-    sh_camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective::make_default()});
+    camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
+    sh_camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
 
 
     shader::terrain_gen_t::refresh_shader();
     terr.create(vtx_count,1<<10);
 
-    sh_map.create(1<<10);
+    sh_map.create(1<<12);
     cb_map.create(1<<10, gl::enums::texture::STORAGE_RGB8);
     sh_fb.create();
+
+    create_cube();
+
 
     return SDL_APP_CONTINUE;
 }catch(const std::exception& e){
@@ -294,6 +431,39 @@ void update_camera(){
 }
 
 
+void render_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
+    glViewport(0, 0, sh_map.texture().texture_size().x, sh_map.texture().texture_size().y);
+
+    glm::mat4 views[6];
+    sh_map.views(views, sh_map_position);
+    for(auto& e : views){
+        e = sh_map.perspective() * e;
+    }
+
+    linear_depth.use();
+    linear_depth.set("light_pos",   sh_map_position);          //vec3
+    linear_depth.set("far_z",       cube_map::far_plane);           //float
+    linear_depth.set("near_z",      cube_map::near_plane);          //float
+    linear_depth.set("shadowmap_matricies", std::span<glm::mat4>{views});        //mat4
+
+
+    
+    //linear_depth.set("model_matrix", views);            //mat4
+    sh_fb.attach(sh_map.texture(), gl::enums::framebuffer::DEPTH_ATTACHMENT, 0);
+
+    sh_fb.bind();
+
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    terr.draw_all();
+
+
+        //reset viewport and framebuffer
+    sh_fb.unbind();
+    auto wsz= state.core.p_window->GetWindowSize();
+    glViewport(0, 0, wsz.x, wsz.y);
+}
+
 void update_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
     const bool* keystate = SDL_GetKeyboardState(nullptr);
     const float dt = appstate_t::_S_ActiveState->time.delta_timef();
@@ -301,13 +471,21 @@ void update_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
     const float fast = 64 * dt;
     const float movement = keystate[SDL_SCANCODE_LSHIFT] ? fast : slow;
 
+
+    bool updated = true;
     if(keystate[SDL_SCANCODE_UP]){
         sh_map_position += movement*glm::vec3(0,1,0);
     }else if(keystate[SDL_SCANCODE_DOWN]){
         sh_map_position += movement*glm::vec3(0,-1,0);
+    }else{
+        updated=false;
     }
+    if(updated)
+        create_cube();
 
-
+    render_cubemap(state);
+}
+    /*
     glViewport(0, 0, sh_map.texture().texture_size().x, sh_map.texture().texture_size().y);
     for(size_t i = 0; i < cube_map::face_count; i++){
         sh_map.set_camera(sh_camera, sh_map_position, i);
@@ -318,27 +496,26 @@ void update_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
             std::cerr << "Incomplete framebuffer: " << sh_fb.status() << '\n';
         
         sh_fb.bind();
-        glClearColor(i<=1, i>1&&i<=3, i>3&&i<=5, 1);
-        glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        glClearColor(i<=1||i==5, i>=1&&i<=3, i>=3&&i<=5, 1);
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
 
         basic.use();
         sh_camera.bind();
         terr.draw_all();
+        
         glClear(GL_COLOR_BUFFER_BIT);
     }
     glClearColor(0.1,0.1,0.1, 1);
     sh_fb.unbind();
     auto wsz= state.core.p_window->GetWindowSize();
     glViewport(0, 0, wsz.x, wsz.y);
-}
-
+    */
 uint i = 0;
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
     state.time.update();
 
-       
     {   
         size_t index = 0;
         for(int y = 0; y <= 2; y++){
@@ -369,6 +546,11 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
         basic.set("far_z", cube_map::far_plane);
 
         terr.draw_all();
+
+
+        draw_cube();
+
+        //basic.set("model_matrix")
     }
 
     SDL::GL::SwapWindow(*state.core.p_window);
@@ -377,7 +559,6 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     std::cerr << "Uncaught exception at SDL_AppIterate: " << e.what() << '\n'; 
     return SDL_APP_FAILURE;
 }
-
 
 sdl_ext SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);

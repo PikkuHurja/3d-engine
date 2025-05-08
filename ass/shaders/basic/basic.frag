@@ -28,9 +28,6 @@ float linearize_depth(float d)
 {
     return near_z * far_z / (far_z + d * (near_z - far_z));
 }
-float map(float value, float inMin, float inMax, float outMin, float outMax) {
-  return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
-}
 
 
 
@@ -47,46 +44,32 @@ in vec3 TangentViewPos;
 in vec3 TangentFragPos;
 
 out vec4 output_color;
-/*
-    float fl = floor(LocalPosition.y);
-    float fr = LocalPosition.y-fl;
-    int f = int(abs(fl))%3;
 
-
-    float x = dot(Normal, vec3(0,1,0));
-
-
-    float height = LocalPosition.y/256;
-    if(height <= 0.f)
-        output_color = vec4(vec3(0, 0, 1+height*2), 1);
-    else if(height <= 0.2f)
-        output_color = mix(
-            vec4(0.60, 0.53, 0.26, 1),
-            vec4(0.35, 0.87, 0.26, 1),
-            height*5
-        );
-    else if(height <= 1.f){
-        output_color = mix(
-            vec4(0.35, 0.87, 0.26, 1),
-            vec4(1),
-            (height-0.2)*1.25
-        );
-    }else{
-        output_color = vec4(1,0,1,1);
-    }
-    //output_color.xyz=vec3(abs(pow(x, 6)));
-    //output_color = vec4(vec3(fr), 1);
-*/
 
 void main(){
-
-    vec3 vec_from_light_to_obj = WorldPosition-cube_map_position;
-    vec3 dvec_from_light_to_obj = normalize(vec_from_light_to_obj);
-
-    float cb_sample = texture(cube_map, dvec_from_light_to_obj).x;
-
-    float a = linearize_depth(cb_sample);
-
-    output_color.xyz=vec3(a/far_z);
     output_color.a = 1;
+
+    vec3 frag_to_light = WorldPosition - cube_map_position;
+    float current_depth = length(frag_to_light); // actual distance from light to fragment
+
+    if(current_depth >= far_z){
+        output_color.xyz = vec3(0);
+        return;
+    }
+
+    // Sample depth stored in cubemap in that direction
+    float sampled_depth = texture(cube_map, frag_to_light).r*(far_z-near_z) + near_z;
+
+    // Apply bias to reduce shadow acne
+    float bias = 40;
+    float light = clamp(1 - ((current_depth-bias) - sampled_depth), 0.f, 1.f);
+    /*sampled_depth/far_z, current_depth/far_z, */
+
+
+	vec3 light_to_frag = cube_map_position - WorldPosition;
+    vec3 light_direction = normalize(light_to_frag);
+    float d = dot(light_direction, -Normal);
+    float diffuse_intensity = clamp(d, 0.f, 1.f);
+
+    output_color.xyz = vec3( (diffuse_intensity) * light * clamp((far_z - current_depth) / far_z, 0.f, 1.f));
 }
