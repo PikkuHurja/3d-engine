@@ -68,7 +68,7 @@ void main(){
 
 	vec3 light_to_frag = cube_map_position - WorldPosition;
     vec3 light_direction = normalize(light_to_frag);
-    float d = dot(light_direction, -Normal);
+    float d = dot(light_direction, Normal);
     float diffuse_intensity = clamp(d, 0.f, 1.f);
 
     output_color.xyz = vec3( (diffuse_intensity) * light * clamp((far_z - current_depth) / far_z, 0.f, 1.f));

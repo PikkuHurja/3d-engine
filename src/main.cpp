@@ -474,9 +474,9 @@ void update_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
 
     bool updated = true;
     if(keystate[SDL_SCANCODE_UP]){
-        sh_map_position += movement*glm::vec3(0,1,0);
+        sh_map_position += movement*glm::vec3( 1,0, 1);
     }else if(keystate[SDL_SCANCODE_DOWN]){
-        sh_map_position += movement*glm::vec3(0,-1,0);
+        sh_map_position += movement*glm::vec3(-1,0,-1);
     }else{
         updated=false;
     }
