@@ -164,6 +164,7 @@ void main(){
     chunk_data[offset+uv_offset]    =  global_uv.x;
     chunk_data[offset+uv_offset+1]  =  global_uv.y;
 
+    /*
     const float delta =  1.f/(vertex_count-1.f);
     float extra_samples[4];
     extra_samples[0] = calculate_height(global_uv-vec2(delta, 0));
@@ -178,18 +179,36 @@ void main(){
     vec3 normal = normalize(cross(dx,dz));
     vec3 tangent = normalize(dx);
     vec3 bitangent = normalize(dz);
+    */
 
+    const float delta =  1.f/(vertex_count-1.f);
+    float x_delta = calculate_height(global_uv+vec2(delta, 0));
+    float y_delta = calculate_height(global_uv+vec2(0, delta));
+
+    //extra_samples[0] = calculate_height(global_uv-vec2(delta, 0));
+    //extra_samples[1] = calculate_height(global_uv+vec2(delta, 0));
+    //extra_samples[2] = calculate_height(global_uv-vec2(0, delta));
+    //extra_samples[3] = calculate_height(global_uv+vec2(0, delta));
+
+    vec3 dx = vec3(delta * chunck_size, x_delta-y_position , 0.0);
+    vec3 dz = vec3(0.0, y_delta-y_position, dx.x);
+    
+        //for some reason, this calculates the opposite
         //so we negate it
-    chunk_data[offset+normal_offset]        = -normal.x;
-    chunk_data[offset+normal_offset+1]      = -normal.y;
-    chunk_data[offset+normal_offset+2]      = -normal.z;
+    vec3 normal     = -normalize(cross(dx,dz));
+    vec3 tangent    = -normalize(dx);
+    vec3 bitangent  = -normalize(dz);
+    
+    chunk_data[offset+normal_offset]        = normal.x;
+    chunk_data[offset+normal_offset+1]      = normal.y;
+    chunk_data[offset+normal_offset+2]      = normal.z;
 
-    chunk_data[offset+tangent_offset]       = -tangent.x;
-    chunk_data[offset+tangent_offset+1]     = -tangent.y;
-    chunk_data[offset+tangent_offset+2]     = -tangent.z;
+    chunk_data[offset+tangent_offset]       = tangent.x;
+    chunk_data[offset+tangent_offset+1]     = tangent.y;
+    chunk_data[offset+tangent_offset+2]     = tangent.z;
 
-    chunk_data[offset+bitangent_offset]     = -bitangent.x;
-    chunk_data[offset+bitangent_offset+1]   = -bitangent.y;
-    chunk_data[offset+bitangent_offset+2]   = -bitangent.z;
+    chunk_data[offset+bitangent_offset]     = bitangent.x;
+    chunk_data[offset+bitangent_offset+1]   = bitangent.y;
+    chunk_data[offset+bitangent_offset+2]   = bitangent.z;
 
 }
