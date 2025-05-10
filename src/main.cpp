@@ -331,6 +331,9 @@ gl::program basic{nullptr};
     mat4 model_matrix
 */
 gl::program linear_depth{nullptr};
+gl::program tint{nullptr};
+
+rectangle glass_panel{nullptr};
 
 int lod = 0;
 
@@ -390,11 +393,18 @@ void print_extensions(){
 }
 
 void blend_tintmap(){
-    glEnable(GL_BLEND_ADVANCED_COHERENT_KHR);
-    glBlendEquation(GL_MULTIPLY_KHR);
-    glBlendFunc(GL_ONE, GL_ONE);
+    //glEnable(GL_BLEND_ADVANCED_COHERENT_KHR);
+    glEnable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+
+    //glBlendEquation(GL_MULTIPLY_KHR);
+    //glBlendBarrierKHR();
 }
 void blend_default(){
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
     glBlendEquation(GL_FUNC_ADD);
     glBlendFunc(GL_ONE, GL_ZERO);
 }
@@ -406,11 +416,12 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     appstate_t& state = *appstate_t::_S_ActiveState;
     state.init();
 
-
+    print_extensions();
     assert(gl::ext::is_supported(gl::ext::blend_equation_advanced));
 
     basic = shader::load("ass/shaders/basic");
     linear_depth = shader::load("ass/shaders/linear-depth");
+    tint = shader::load("ass/shaders/tint");
 
     camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
     sh_camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
@@ -418,6 +429,7 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
     shader::terrain_gen_t::refresh_shader();
     terr.create(vtx_count,1<<10);
+    glass_panel.create(rect3D{{200, 20, 200}, {200, 50, 200}, {200, 20, 400}});
 
     sh_map.create(1<<12);
     cb_map.create(1<<10, gl::enums::texture::STORAGE_RGB8);
@@ -575,9 +587,15 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
         basic.set("far_z", cube_map::far_plane);
 
         terr.draw_all();
-
-
         draw_cube();
+
+        blend_tintmap();
+
+        tint.use();
+        glass_panel.draw();
+        glBlendBarrierKHR();
+
+        blend_default();
 
         //basic.set("model_matrix")
     }

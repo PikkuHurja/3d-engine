@@ -58,8 +58,8 @@ struct cube_map{
     inline operator gl::texture&()             {return _M_CubemapTexture;}
     inline operator const gl::texture&()const  {return _M_CubemapTexture;}
 
-    inline void create(const float& resolution, const gl::enums::texture::format_storage& storage_type){
-        return create(glm::vec2{resolution}, storage_type);
+    inline void create(const uint& resolution, const gl::enums::texture::format_storage& storage_type){
+        return create(glm::uvec2{resolution}, storage_type);
     }
     inline void create(const glm::uvec2& resolution, const gl::enums::texture::format_storage& storage_type){
         _M_CubemapTexture.create(gl::enums::texture::type::TextureCubeMap, resolution, storage_type,1);
