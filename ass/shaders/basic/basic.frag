@@ -19,6 +19,23 @@ layout(std140, binding = 0) uniform ubCamera
 
 
 
+    // radius could be removed, since it could be calculated using brightness
+struct point_light_t{
+    uint cubemap_index16_reserved16; //2 bytes shadowmap index, rest is reserved
+    vec4 position_radius;   //xyz position, w radius
+    vec4 color_brightness;  //xyz color, w brightness/intensity
+};
+
+void point_light_t_get_cubemap_index(inout point_light_t pl, out uint index){
+    index = pl.cubemap_index16_reserved16 & 0x0000FFFF;
+}
+void point_light_t_get_position(inout point_light_t pl, out vec3 position){
+    position = pl.position_radius.xyz;
+}
+void point_light_t_get_radius(inout point_light_t pl, out float radius){
+    radius = pl.position_radius.w;
+}
+
 uniform samplerCube cube_map;
 uniform vec3 cube_map_position = vec3(233.559, 32.0134, 267.112);
 uniform float near_z  = 0.1;
@@ -44,6 +61,40 @@ in vec3 TangentViewPos;
 in vec3 TangentFragPos;
 
 out vec4 output_color;
+
+/*
+lets do multisampling
+*/
+const float step_factor = 1/1000;
+
+int auto_num_samples(float distance_from_lightsrc){
+    return 5;
+}
+
+const float sample_factor = 1/1000; //less close, more further
+const float bias          = 4;
+
+
+float to_distance(float shadowmap_sample){
+    return shadowmap_sample*(far_z-near_z) + near_z;
+}
+
+float sample_cubemap_shadowmap(int number_of_samples, float distance_from_lightsrc, vec3 fragment_normal, vec3 fragment_position){
+    float cumulative = 0;
+    
+    float step_size = distance_from_lightsrc * step_factor;
+    float offset_angle = 3.14159 * 2.0 / float(number_of_samples);
+    for(int i = 0; i < number_of_samples; i++){
+        vec3 sample_position = fragment_position;
+        float shadowmap_sample = texture(cube_map, sample_position).r;
+        float sampled_depth = to_distance(shadowmap_sample);
+        float light = clamp(1 - ((distance_from_lightsrc - bias) - sampled_depth), 0.f, 1.f);
+        cumulative += light;
+    }
+    
+    cumulative/=number_of_samples;
+    return cumulative;
+}
 
 
 void main(){

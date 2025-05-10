@@ -8,6 +8,7 @@
 #include "cubemap/cube-map.hpp"
 #include "cubemap/shadow-map.hpp"
 #include "draw/draw.hpp"
+#include "extensions.hpp"
 #include "gl/buffer.hpp"
 #include "gl/buffer_enums.hpp"
 #include "gl/draw_enums.hpp"
@@ -46,6 +47,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <ostream>
 #include <span>
 #include <sys/types.h>
 #define SDL_MAIN_USE_CALLBACKS
@@ -373,12 +375,39 @@ void refresh_cursor(appstate_t& state){
     SDL_SetWindowMouseGrab(*state.core.p_window, should_capture_cursor);
 }
 
+void print_extensions(){
+    if(!appstate_t::gl_t::s_has_initialized)
+        std::cerr << "print_extensions: 'opengl was not initialized!'" << std::endl;
+    
+    appstate_t::gl_t::after_gl([](){
+        GLint n;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &n);
+        for (int i = 0; i < n; ++i) {
+            const char* ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
+            std::cout << i << ": '" << ext << "'\n";
+        }
+    });
+}
 
+void blend_tintmap(){
+    glEnable(GL_BLEND_ADVANCED_COHERENT_KHR);
+    glBlendEquation(GL_MULTIPLY_KHR);
+    glBlendFunc(GL_ONE, GL_ONE);
+}
+void blend_default(){
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ZERO);
+}
 
 sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
+
+
     appstate_t::_S_ActiveState = *reinterpret_cast<appstate_t**>(appstate) = new appstate_t;
     appstate_t& state = *appstate_t::_S_ActiveState;
     state.init();
+
+
+    assert(gl::ext::is_supported(gl::ext::blend_equation_advanced));
 
     basic = shader::load("ass/shaders/basic");
     linear_depth = shader::load("ass/shaders/linear-depth");
