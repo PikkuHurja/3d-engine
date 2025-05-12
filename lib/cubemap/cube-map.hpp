@@ -92,6 +92,11 @@ struct cube_map{
             view_mat[i] = view(position, i);
         }
     }
+    inline static void perspective_views(glm::mat4 view_mat[face_count], const glm::vec3& position){
+        for(size_t i = 0; i < face_count; i++){
+            view_mat[i] = perspective() * view(position, i);
+        }
+    }
     inline static const glm::mat4& perspective(){
         return capture_perspective;
     }

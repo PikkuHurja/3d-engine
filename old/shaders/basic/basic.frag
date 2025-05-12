@@ -21,9 +21,9 @@ layout(std140, binding = 0) uniform ubCamera
 
     // radius could be removed, since it could be calculated using brightness
 struct point_light_t{
-    uint cubemap_index16_reserved16; //2 bytes shadowmap index, rest is reserved
-    vec4 position_radius;   //xyz position, w radius
-    vec4 color_brightness;  //xyz color, w brightness/intensity
+    uint cubemap_index16_reserved16;    //2 bytes shadowmap index, rest is reserved
+    vec4 position_radius;               //xyz position, w radius
+    vec4 color_brightness;              //xyz color, w brightness/intensity
 };
 
 void point_light_t_get_cubemap_index(inout point_light_t pl, out uint index){

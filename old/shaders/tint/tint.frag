@@ -13,6 +13,6 @@ layout(location = 0) out vec4 output_color;
 void main(){
     vec4 o = albedo;
 
-    output_color.xyz = o.xyz;
+    output_color.xyz = o.xyz * o.a;
     output_color.a = 1;
 }

@@ -22,6 +22,9 @@ vec4 color = texture(cubemapArray, vec4(dir, float(cubemapIndex)));
 struct cube_map_array{
     gl::texture _M_CubemapTexture;
 
+
+    inline operator bool()const{return _M_CubemapTexture;}
+
     inline const uint&          count(){return _M_CubemapTexture.texture_size().z;}
     inline const glm::uvec2&    resolution(){return reinterpret_cast<const glm::uvec2&>(_M_CubemapTexture.texture_size());}
 
