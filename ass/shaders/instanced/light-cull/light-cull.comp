@@ -1,0 +1,65 @@
+#version 440 core
+layout(local_size_x = 16, local_size_y = 16) in;
+
+
+
+
+struct point_light_t{
+    uint index;
+    uint padding[3];
+    vec4 position_radius;
+    vec4 color_intensity;
+};
+
+layout(std430, binding = 0) buffer _M_GPULightData{
+    point_light_t light_data[];
+};
+
+layout(std430, binding = 2) buffer _M_CullBuffer{
+    uvec2 object_light[]; //shall have enough
+};
+/*
+struct {
+    uint  count;
+    uint  instanceCount;
+    uint  firstIndex;
+    uint  baseVertex;
+    uint  baseInstance;
+} DrawElementsIndirectCommand;
+*/
+layout(std430, binding = 3) buffer _M_IndirectCommand{
+    uint  count;
+    uint  instanceCount;
+    uint  firstIndex;
+    uint  baseVertex;
+    uint  baseInstance;
+};
+layout(std430, binding = 4) buffer _M_ModelMatricies{
+    mat4 model_matricies[];
+};
+uniform vec4 position_radius;
+
+void main(){
+    uvec2 objectID_lightID = gl_GlobalInvocationID.xy;
+
+    if(objectID_lightID.x >= model_matricies.length())
+        return;
+    if(objectID_lightID.y >= light_data.length())
+        return;
+
+    float object_radius = position_radius.w;
+    vec3 object_center = (model_matricies[objectID_lightID.x]*vec4(position_radius.xyz, 1)).xyz;
+
+    vec4 light_position_radius = light_data[objectID_lightID.y].position_radius;
+    float light_radius = light_position_radius.w;
+
+    vec3 delta_vector = light_position_radius.xyz-object_center;
+    float len2 = dot(delta_vector, delta_vector);
+
+    if(len2 >= object_radius*object_radius+light_radius*light_radius)
+        return;
+
+    uint array_index = atomicAdd(count, 1);
+    object_light[array_index] = objectID_lightID;
+}
+
