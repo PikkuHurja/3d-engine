@@ -1,4 +1,6 @@
 #version 430 core
+#extension GL_KHR_blend_equation_advanced : require
+
 
 layout(location = 0) in vec3 aVertex;
 layout(location = 1) in vec2 aUV;

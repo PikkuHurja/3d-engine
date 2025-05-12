@@ -49,6 +49,7 @@
 #include <memory>
 #include <ostream>
 #include <span>
+#include <stdexcept>
 #include <sys/types.h>
 #define SDL_MAIN_USE_CALLBACKS
 #define sdl_ext extern "C" 
@@ -205,7 +206,8 @@ struct terrain{
         //glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
     }
 
-} terr;
+};
+
 
 
 struct rect2D{
@@ -303,6 +305,10 @@ protected:
 };
 
 
+gl::framebuffer render_target{nullptr};
+gl::texture     render_color{nullptr};
+gl::texture     render_depth{nullptr};
+
 rectangle front{nullptr};
 rectangle back{nullptr};
 rectangle left{nullptr};
@@ -310,7 +316,7 @@ rectangle right{nullptr};
 rectangle top{nullptr};
 rectangle bottom{nullptr};
 
-
+//terrain terr;
 
 
 camera_t camera{nullptr};
@@ -332,8 +338,10 @@ gl::program basic{nullptr};
 */
 gl::program linear_depth{nullptr};
 gl::program tint{nullptr};
+gl::program white{nullptr};
 
 rectangle glass_panel{nullptr};
+rectangle ground_plane{nullptr};
 
 int lod = 0;
 
@@ -392,22 +400,6 @@ void print_extensions(){
     });
 }
 
-void blend_tintmap(){
-    //glEnable(GL_BLEND_ADVANCED_COHERENT_KHR);
-    glEnable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-
-    //glBlendEquation(GL_MULTIPLY_KHR);
-    //glBlendBarrierKHR();
-}
-void blend_default(){
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glBlendEquation(GL_FUNC_ADD);
-    glBlendFunc(GL_ONE, GL_ZERO);
-}
 
 sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
@@ -418,18 +410,29 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
 
     print_extensions();
     assert(gl::ext::is_supported(gl::ext::blend_equation_advanced));
+    assert(gl::ext::is_supported(gl::ext::shader_framebuffer_fetch));
 
     basic = shader::load("ass/shaders/basic");
     linear_depth = shader::load("ass/shaders/linear-depth");
     tint = shader::load("ass/shaders/tint");
+    white = shader::load("ass/shaders/white");
 
-    camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
+    camera.create(transform_t{{-208.558, 3.4238, 55.5665}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
     sh_camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
 
+    glm::uvec2 window_size = state.core.p_window->GetWindowSize();
+    render_color.create(gl::enums::texture::Texture2D, window_size, gl::enums::texture::STORAGE_RGB8, 1);
+    render_depth.create(gl::enums::texture::Texture2D, window_size, gl::enums::texture::STORAGE_DEPTH_COMPONENT24, 1);
+    render_target.create();
+    render_target.attach(render_depth, gl::enums::framebuffer::DEPTH_ATTACHMENT);
+    render_target.attach(render_color, gl::enums::framebuffer::COLOR_ATTACHMENT0);
 
-    shader::terrain_gen_t::refresh_shader();
-    terr.create(vtx_count,1<<10);
-    glass_panel.create(rect3D{{200, 20, 200}, {200, 50, 200}, {200, 20, 400}});
+
+
+    //shader::terrain_gen_t::refresh_shader();
+    //terr.create(vtx_count,1<<10);
+    ground_plane.create(rect3D{{0,0,0}, {-200, 0, 0}, {0, 0, 200}});
+    glass_panel.create(rect3D{{5, 5, 5}, {5, 20, 5}, {5, 5, 20}});
 
     sh_map.create(1<<12);
     cb_map.create(1<<10, gl::enums::texture::STORAGE_RGB8);
@@ -496,7 +499,7 @@ void render_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
 
     glClear(GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
-    terr.draw_all();
+    //terr.draw_all();
 
 
         //reset viewport and framebuffer
@@ -526,79 +529,91 @@ void update_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
 
     render_cubemap(state);
 }
-    /*
-    glViewport(0, 0, sh_map.texture().texture_size().x, sh_map.texture().texture_size().y);
-    for(size_t i = 0; i < cube_map::face_count; i++){
-        sh_map.set_camera(sh_camera, sh_map_position, i);
-        sh_camera.refresh();
-        sh_fb.attach(sh_map.texture(), gl::enums::framebuffer::DEPTH_ATTACHMENT, i, 0);
-        sh_fb.attach(cb_map.texture(), gl::enums::framebuffer::COLOR_ATTACHMENT0, i, 0);
-        if (sh_fb.status() != gl::enums::framebuffer::status::COMPLETE)
-            std::cerr << "Incomplete framebuffer: " << sh_fb.status() << '\n';
-        
-        sh_fb.bind();
-        glClearColor(i<=1||i==5, i>=1&&i<=3, i>=3&&i<=5, 1);
-        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
 
-        basic.use();
-        sh_camera.bind();
-        terr.draw_all();
-        
-        glClear(GL_COLOR_BUFFER_BIT);
+
+void terrain_gen(){
+    {   
+        size_t index = 0;
+        for(int y = 0; y <= 2; y++){
+            for(int x = 0; x <= 2; x++){
+                //terr.gen(index++, glm::ivec2{x, y}, (1<<9)/2, seed);
+            }
+        }
     }
-    glClearColor(0.1,0.1,0.1, 1);
-    sh_fb.unbind();
-    auto wsz= state.core.p_window->GetWindowSize();
-    glViewport(0, 0, wsz.x, wsz.y);
-    */
+}
+
+
+void draw_opaque(){
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    white.use();
+    camera.bind();
+        
+        //sh_map.texture().bind(0);
+        //basic.set("cube_map", 0);
+        //basic.set("cube_map_position", sh_map_position);
+        //basic.set("near_z", cube_map::near_plane);
+        //basic.set("far_z", cube_map::far_plane);
+
+    ground_plane.draw();
+
+}
+void draw_transparent(){
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+
+    glEnable(GL_BLEND);
+
+
+    glBlendEquation(GL_MULTIPLY_KHR);   //dosen't produce an error but fucks the whole system...
+
+    //render_target.detach(render_depth, gl::enums::framebuffer::DEPTH_ATTACHMENT);
+
+    tint.use(); //gl program use
+    camera.bind(); // ubo
+    glass_panel.draw(); // necessasry VAO binds and glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
+
+    //render_target.attach(render_depth, gl::enums::framebuffer::DEPTH_ATTACHMENT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE); //re enable depth write
+}
+
+void draw(){
+    //render_target.bind();
+    gl::framebuffer::unbind();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    draw_opaque();
+    draw_transparent();
+
+    //render_target.blit_screen(
+    //    {0,0}, 
+    //    render_color.texture_size(), 
+//
+    //    {0,0}, 
+    //    appstate_t::_S_ActiveState->core.p_window->GetWindowSize(), 
+//
+    //    ::gl::enums::framebuffer::mask::COLOR | ::gl::enums::framebuffer::mask::DEPTH, 
+    //    gl::enums::framebuffer::filter::NEAREST
+    //);
+}
+
 uint i = 0;
 sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     appstate_t& state = *reinterpret_cast<appstate_t*>(appstate);
     state.time.update();
 
-    {   
-        size_t index = 0;
-        for(int y = 0; y <= 2; y++){
-            for(int x = 0; x <= 2; x++){
-                terr.gen(index++, glm::ivec2{x, y}, (1<<9)/2, seed);
-            }
-        }
-    }
+    refresh_cursor(state);
+    update_camera();
+    camera.refresh();
+    
+    terrain_gen();
 
     update_cubemap(state);
 
-    {   // draw to screen
-        
-        refresh_cursor(state);
-        update_camera();
-        //sh_map.set_camera(camera, sh_map_position, lod);
-        camera.refresh();
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-
-        basic.use();
-        camera.bind();
-        sh_map.texture().bind(0);
-        basic.set("cube_map", 0);
-        basic.set("cube_map_position", sh_map_position);
-        basic.set("near_z", cube_map::near_plane);
-        basic.set("far_z", cube_map::far_plane);
-
-        terr.draw_all();
-        draw_cube();
-
-        blend_tintmap();
-
-        tint.use();
-        glass_panel.draw();
-        glBlendBarrierKHR();
-
-        blend_default();
-
-        //basic.set("model_matrix")
-    }
+    draw();
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return SDL_APP_CONTINUE;
