@@ -84,6 +84,10 @@ struct camera_t : transform_t, projection_t{
 
     }
 
+
+    template<ub_index index>
+    auto get(){return gl_ub_camera.get<index>();}
+
     void bind()                     {gl_ub_camera.bind();}
 
 

@@ -84,7 +84,7 @@ struct gl_mesh_interleaved_t{
     uint vertex_count()const{return _stores_vertex_count ? *v_vertex_count : -1;}
 
     gl::vertex_array                                            gl_vao{nullptr};
-    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           gl_data;
+    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           gl_data{nullptr};
     gl::typed_buffer<gl::enums::buffer::ELEMENT_ARRAY_BUFFER>   gl_indecies[_has_indecies];
     uint                                                        v_vertex_count[_stores_vertex_count];
     uint                                                        v_indecie_count[_stores_indecie_count];

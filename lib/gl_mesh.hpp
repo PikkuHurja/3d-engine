@@ -51,13 +51,13 @@ struct gl_mesh_t{
     inline static constexpr bool has_indecies(){return _has_verticies && _has_indecies;}
     inline static constexpr bool stores_vertex_count(){return _stores_vertex_count;}
 
-    gl::vertex_array gl_vao;
-    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           a_gl_verticies  [_has_verticies]                 {};
-    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           a_gl_texturemap [_has_texturemaps]               {};
-    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           a_gl_normals    [_has_normals]                   {};
-    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           a_gl_tangents   [_has_tangents]                  {};
-    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           a_gl_bitangents [_has_bitangents]                {};
-    gl::typed_buffer<gl::enums::buffer::ELEMENT_ARRAY_BUFFER>   a_gl_indecies   [_has_verticies*_has_indecies]   {};
+    gl::vertex_array gl_vao{nullptr};
+    gl::typed_buffer_t<gl::enums::buffer::ARRAY_BUFFER, gl::noinit_buffer>           a_gl_verticies  [_has_verticies]                 {};
+    gl::typed_buffer_t<gl::enums::buffer::ARRAY_BUFFER, gl::noinit_buffer>           a_gl_texturemap [_has_texturemaps]               {};
+    gl::typed_buffer_t<gl::enums::buffer::ARRAY_BUFFER, gl::noinit_buffer>           a_gl_normals    [_has_normals]                   {};
+    gl::typed_buffer_t<gl::enums::buffer::ARRAY_BUFFER, gl::noinit_buffer>           a_gl_tangents   [_has_tangents]                  {};
+    gl::typed_buffer_t<gl::enums::buffer::ARRAY_BUFFER, gl::noinit_buffer>           a_gl_bitangents [_has_bitangents]                {};
+    gl::typed_buffer_t<gl::enums::buffer::ELEMENT_ARRAY_BUFFER, gl::noinit_buffer>   a_gl_indecies   [_has_verticies*_has_indecies]   {};
     uint                                                        v_vertex_count  [_stores_vertex_count];
     const uint& vertex_count()const requires(stores_vertex_count()){
         return *v_vertex_count;
@@ -110,9 +110,15 @@ struct gl_mesh_t{
         const glm::vec3*           const    tangents = nullptr,
         const glm::vec3*           const    bitangents = nullptr
     ){
+        if(!gl_vao)
+            gl_vao.create();
+
         gl_vao.bind();
 
         if constexpr (has_verticies())      {
+            if(!*a_gl_verticies) 
+                a_gl_verticies->create();
+
             gl_vao.enable_attribute (gl::shader_spec::aVertex);
             a_gl_verticies->bind();
             a_gl_verticies->data(verticies, count*sizeof(*verticies), gl::enums::buffer::usage::STATIC_DRAW);
@@ -120,6 +126,8 @@ struct gl_mesh_t{
 
         }else { gl_vao.disable_attribute(gl::shader_spec::aVertex); }
         if constexpr (has_texturemaps())    {
+            if(!*a_gl_texturemap) 
+                a_gl_texturemap->create();
             gl_vao.enable_attribute (gl::shader_spec::aUV);
             a_gl_texturemap->bind();
             a_gl_texturemap->data(texturemaps, count*sizeof(*texturemaps), gl::enums::buffer::usage::STATIC_DRAW);
@@ -127,6 +135,8 @@ struct gl_mesh_t{
 
         }else { gl_vao.disable_attribute(gl::shader_spec::aUV); }
         if constexpr (has_normals())        {
+            if(!*a_gl_normals) 
+                a_gl_normals->create();
             gl_vao.enable_attribute (gl::shader_spec::aNormal);
             a_gl_normals->bind();
             a_gl_normals->data(normals, count*sizeof(*normals), gl::enums::buffer::usage::STATIC_DRAW);
@@ -134,6 +144,8 @@ struct gl_mesh_t{
 
         }else { gl_vao.disable_attribute(gl::shader_spec::aNormal); }
         if constexpr (has_tangents())       {
+            if(!*a_gl_tangents) 
+                a_gl_tangents->create();
             gl_vao.enable_attribute (gl::shader_spec::aTangent);
             a_gl_tangents->bind();
             a_gl_tangents->data(tangents, count*sizeof(*tangents), gl::enums::buffer::usage::STATIC_DRAW);
@@ -141,6 +153,8 @@ struct gl_mesh_t{
 
         }else { gl_vao.disable_attribute(gl::shader_spec::aTangent); }
         if constexpr (has_bitangents())     {
+            if(!*a_gl_bitangents) 
+                a_gl_bitangents->create();
             gl_vao.enable_attribute (gl::shader_spec::aBitangent);
             a_gl_bitangents->bind();
             a_gl_bitangents->data(bitangents, count*sizeof(*bitangents), gl::enums::buffer::usage::STATIC_DRAW);
@@ -148,6 +162,8 @@ struct gl_mesh_t{
 
         }else { gl_vao.disable_attribute(gl::shader_spec::aBitangent); }
         if constexpr(has_indecies()){
+            if(!*a_gl_indecies) 
+                a_gl_indecies->create();
             a_gl_indecies->bind();
             a_gl_indecies->data(indecies, count*sizeof(*indecies), gl::enums::buffer::STATIC_DRAW);
         }

@@ -2,11 +2,11 @@
 
 #include "appstate.hpp"
 #include "camera/camera.hpp"
-#include "camera/orthographic.hpp"
 #include "camera/perspective.hpp"
 #include "camera/projection.hpp"
 #include "cubemap/cube-map.hpp"
 #include "cubemap/shadow-map.hpp"
+#include "cubemap/skybox.hpp"
 #include "draw/draw.hpp"
 #include "extensions.hpp"
 #include "gl/buffer.hpp"
@@ -18,7 +18,6 @@
 #include "gl/texture.hpp"
 #include "gl/framebuffer.hpp"
 #include "gl/texture_enums.hpp"
-#include "gl/synchronization.hpp"
 #include "gl/vertex_array.hpp"
 #include "obj/transform.hpp"
 #include "shader/load.hpp"
@@ -34,7 +33,9 @@
 #include <cstddef>
 #include <cstdlib>
 #include <exception>
+#include <glm/ext/matrix_float3x3.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_float.hpp>
 #include <glm/ext/quaternion_geometric.hpp>
 #include <glm/ext/quaternion_trigonometric.hpp>
@@ -44,13 +45,13 @@
 #include <glm/ext/vector_float4.hpp>
 #include <glm/ext/vector_int2.hpp>
 #include <glm/ext/vector_uint2.hpp>
+#include <glm/matrix.hpp>
 #include <iostream>
-#include <limits>
 #include <memory>
 #include <ostream>
 #include <span>
-#include <stdexcept>
 #include <sys/types.h>
+
 #define SDL_MAIN_USE_CALLBACKS
 #define sdl_ext extern "C" 
 #include <SDL3/SDL_main.h>
@@ -62,13 +63,21 @@
 #include <SDL/Window.h>
 #include <SDL/GL.h>
 
-#include "noise/perlin.hpp"
-#include "noise/perlin-tileable.hpp"
-#include "noise/value.hpp"
 #include "shaders/terrain-gen.hpp"
 
 #include <cppostream/glm/glm.hpp>
 
+
+
+void clear_error(){
+    while (glGetError()) {}
+}
+
+void check_error(const char* msg){
+    while (int err = glGetError()) {
+        std::cerr << msg << ": " << err << '\n';
+    }
+}
 
 struct terrain{
     using sh = shader::terrain_gen_t;
@@ -208,6 +217,15 @@ struct terrain{
 
 };
 
+void terrain_gen(terrain& terr, uint seed){
+    size_t index = 0;
+    for(int y = 0; y <= 2; y++){
+        for(int x = 0; x <= 2; x++){
+            terr.gen(index++, glm::ivec2{x, y}, (1<<9)/2, seed);
+        }
+    }
+}
+
 
 
 struct rect2D{
@@ -316,27 +334,22 @@ rectangle right{nullptr};
 rectangle top{nullptr};
 rectangle bottom{nullptr};
 
-//terrain terr;
+terrain terr;
 
 
 camera_t camera{nullptr};
 camera_t sh_camera{nullptr};
 
+skybox_t skybox{nullptr};
 
 glm::vec3 sh_map_position{250, 30, 200};
-gl::framebuffer sh_fb;
-shadow_map sh_map;
-cube_map cb_map;
+gl::framebuffer sh_fb{nullptr};
+shadow_map  sh_map{nullptr};
+cube_map    cb_map{nullptr};
 gl::program basic{nullptr};
 
-/*
-    vec3  light_pos
-    float far_z
-    float near_z
-    mat4 shadowmap_matricies[6]
-    mat4 model_matrix
-*/
 gl::program linear_depth{nullptr};
+gl::program light_tint{nullptr};
 gl::program tint{nullptr};
 gl::program white{nullptr};
 
@@ -413,11 +426,14 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     assert(gl::ext::is_supported(gl::ext::shader_framebuffer_fetch));
 
     basic = shader::load("ass/shaders/basic");
+    
     linear_depth = shader::load("ass/shaders/linear-depth");
+    light_tint = shader::load("ass/shaders/light-tint");
+
     tint = shader::load("ass/shaders/tint");
     white = shader::load("ass/shaders/white");
 
-    camera.create(transform_t{{-208.558, 3.4238, 55.5665}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
+    camera.create(transform_t{{-208, 3, 55}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
     sh_camera.create(transform_t{{0, 0, 1}, glm::quat{1, 0, 0, 0}, {1,1,1}}, projection_t{perspective_t::make_default()});
 
     glm::uvec2 window_size = state.core.p_window->GetWindowSize();
@@ -427,12 +443,15 @@ sdl_ext SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)try{
     render_target.attach(render_depth, gl::enums::framebuffer::DEPTH_ATTACHMENT);
     render_target.attach(render_color, gl::enums::framebuffer::COLOR_ATTACHMENT0);
 
+    skybox.refresh_shader();
+    skybox.create_cube();
+    skybox.create(1<<10, gl::enums::texture::STORAGE_RGB8);
+    skybox.texture().clear(glm::vec4{.1});
 
-
-    //shader::terrain_gen_t::refresh_shader();
-    //terr.create(vtx_count,1<<10);
+    shader::terrain_gen_t::refresh_shader();
+    terr.create(vtx_count,1<<10);
     ground_plane.create(rect3D{{0,0,0}, {-200, 0, 0}, {0, 0, 200}});
-    glass_panel.create(rect3D{{5, 5, 5}, {5, 20, 5}, {5, 5, 20}});
+    glass_panel.create(rect3D{{25, -25, 255}, {25, 20, 255}, {205, -25, 270}});
 
     sh_map.create(1<<12);
     cb_map.create(1<<10, gl::enums::texture::STORAGE_RGB8);
@@ -474,8 +493,56 @@ void update_camera(){
     camera.refresh();
 }
 
+void draw_shadowmap_opaque();
+void draw_shadowmap_transparent();
+
+void render_light_depth(glm::mat4* views){
+    clear_error();
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    linear_depth.use();
+    linear_depth.set("light_pos",   sh_map_position);          //vec3
+    linear_depth.set("far_z",       cube_map::far_plane);           //float
+    linear_depth.set("near_z",      cube_map::near_plane);          //float
+    linear_depth.set("shadowmap_matricies", std::span<glm::mat4>{views, 6});        //mat4
+
+    sh_fb.attach(sh_map.texture(), gl::enums::framebuffer::DEPTH_ATTACHMENT, 0);
+    sh_fb.bind();
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    terr.draw_all();
+    //draw_shadowmap_opaque();
+    check_error("render_light_depth");
+}
+void render_light_tint(glm::mat4* views){
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_MULTIPLY_KHR);
+
+    light_tint.use();
+    light_tint.set("shadowmap_matricies",   std::span<glm::mat4>{views, 6});        //mat4
+
+    cb_map.texture().clear(glm::vec4(1));
+
+    sh_fb.attach(cb_map.texture(), gl::enums::framebuffer::COLOR_ATTACHMENT0, 0);
+    sh_fb.bind();
+
+
+    draw_shadowmap_transparent();
+
+    sh_fb.detach(cb_map.texture(), gl::enums::framebuffer::COLOR_ATTACHMENT0);
+    glDepthMask(GL_TRUE);
+    
+}
+
 
 void render_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
+    clear_error();
     glViewport(0, 0, sh_map.texture().texture_size().x, sh_map.texture().texture_size().y);
 
     glm::mat4 views[6];
@@ -483,6 +550,30 @@ void render_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
     for(auto& e : views){
         e = sh_map.perspective() * e;
     }
+
+
+    render_light_depth(views);
+    render_light_tint(views);
+    //FIN
+
+        //reset viewport and framebuffer
+    sh_fb.unbind();
+    auto wsz= state.core.p_window->GetWindowSize();
+    glViewport(0, 0, wsz.x, wsz.y);
+    check_error("render_cubemap");
+}
+
+/*
+void render_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
+    clear_error();
+    glViewport(0, 0, sh_map.texture().texture_size().x, sh_map.texture().texture_size().y);
+
+    glm::mat4 views[6];
+    sh_map.views(views, sh_map_position);
+    for(auto& e : views){
+        e = sh_map.perspective() * e;
+    }
+
 
     linear_depth.use();
     linear_depth.set("light_pos",   sh_map_position);          //vec3
@@ -497,24 +588,23 @@ void render_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
 
     sh_fb.bind();
 
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    //terr.draw_all();
+    terr.draw_all();
 
 
         //reset viewport and framebuffer
     sh_fb.unbind();
     auto wsz= state.core.p_window->GetWindowSize();
     glViewport(0, 0, wsz.x, wsz.y);
+    check_error("render_cubemap");
 }
+*/
 
 void update_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
     const bool* keystate = SDL_GetKeyboardState(nullptr);
     const float dt = appstate_t::_S_ActiveState->time.delta_timef();
-    const float slow = 1 * dt;
-    const float fast = 64 * dt;
-    const float movement = keystate[SDL_SCANCODE_LSHIFT] ? fast : slow;
-
+    constexpr float slow = 1;
+    constexpr float fast = 64;
+    const float movement = (keystate[SDL_SCANCODE_LSHIFT] ? fast : slow) * dt;
 
     bool updated = true;
     if(keystate[SDL_SCANCODE_UP]){
@@ -531,54 +621,72 @@ void update_cubemap(appstate_t& state = *appstate_t::_S_ActiveState){
 }
 
 
-void terrain_gen(){
-    {   
-        size_t index = 0;
-        for(int y = 0; y <= 2; y++){
-            for(int x = 0; x <= 2; x++){
-                //terr.gen(index++, glm::ivec2{x, y}, (1<<9)/2, seed);
-            }
-        }
-    }
+
+void draw_shadowmap_opaque(){
+    clear_error();
+    terr.draw_all();
+    check_error("draw_shadowmap_opaque");
 }
 
-
+void draw_shadowmap_transparent(){
+    clear_error();
+    glass_panel.draw();
+    check_error("draw_shadowmap_transparent");
+}
 void draw_opaque(){
+    clear_error();
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
-    white.use();
+    basic.use();
     camera.bind();
         
-        //sh_map.texture().bind(0);
-        //basic.set("cube_map", 0);
-        //basic.set("cube_map_position", sh_map_position);
-        //basic.set("near_z", cube_map::near_plane);
-        //basic.set("far_z", cube_map::far_plane);
+        sh_map.texture().bind(0);
+        basic.set("cube_map", 0);
+        basic.set("cube_map_position", sh_map_position);
+        basic.set("near_z", cube_map::near_plane);
+        basic.set("far_z", cube_map::far_plane);
 
-    ground_plane.draw();
+    //ground_plane.draw();
+    terr.draw_all();
+    check_error("draw_opaque");
 
 }
-void draw_transparent(){
-    glDisable(GL_DEPTH_TEST);
+void draw_skybox(){
+    clear_error();
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_FALSE);
 
+        //some weird bullshit
+    glm::mat4 model = camera.projection_matrix() * glm::mat4_cast(glm::inverse(camera.v_rotation));
+    
+    skybox.draw(model);
+
+    glDepthMask(GL_TRUE);
+    check_error("draw_skybox");
+}
+void draw_transparent(){
+    clear_error();
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_FALSE);
     glEnable(GL_BLEND);
 
+    glBlendEquation(GL_MULTIPLY_KHR);
 
-    glBlendEquation(GL_MULTIPLY_KHR);   //dosen't produce an error but fucks the whole system...
+    tint.use();
+    camera.bind();
+    glass_panel.draw();
 
-    //render_target.detach(render_depth, gl::enums::framebuffer::DEPTH_ATTACHMENT);
-
-    tint.use(); //gl program use
-    camera.bind(); // ubo
-    glass_panel.draw(); // necessasry VAO binds and glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
-
-    //render_target.attach(render_depth, gl::enums::framebuffer::DEPTH_ATTACHMENT);
     glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE); //re enable depth write
+    glDepthMask(GL_TRUE);
+    check_error("draw_transparent");
 }
+
+
 
 void draw(){
     //render_target.bind();
@@ -586,6 +694,7 @@ void draw(){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     draw_opaque();
+    draw_skybox();
     draw_transparent();
 
     //render_target.blit_screen(
@@ -609,7 +718,7 @@ sdl_ext SDL_AppResult SDL_AppIterate(void *appstate)try{
     update_camera();
     camera.refresh();
     
-    terrain_gen();
+    terrain_gen(terr, seed);
 
     update_cubemap(state);
 
