@@ -24,10 +24,12 @@ layout(std140, binding = 0) uniform ubCamera
 };
 
 void main() {
-    vec3 center = gl_in[0].gl_Position.xyz;
-
-    // Generate camera-facing quad
     float radius = color_radius[0].w;
+    if(radius == 0)
+        return;
+
+    vec3 center = gl_in[0].gl_Position.xyz;
+    // Generate camera-facing quad
     vec3 c_color = color_radius[0].xyz;
     vec3 right = vec3(view[0][0], view[1][0], view[2][0]) * radius;
     vec3 up    = vec3(view[0][1], view[1][1], view[2][1]) * radius;
