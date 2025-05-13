@@ -195,7 +195,7 @@ struct point_light_array_t{
         return false;
     }
 
-    void debug_draw(gl::vertex_array& debug_vao, camera_t& camera){
+    void debug_draw_transparent_opaque(gl::vertex_array& debug_vao, camera_t& camera){
         if(!_S_DebugProgram)
             throw std::runtime_error("point_light_array_t<...>::debug_draw: _S_DebugProgram was uninitialized / failed to initialize!\n");
 
@@ -203,6 +203,36 @@ struct point_light_array_t{
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
         glDisable(GL_BLEND);
+
+        camera.bind();
+        debug_vao.bind();
+        gl::draw_one(gl::enums::POINTS, 0, _M_ArraySize);
+    }
+    void debug_draw_transparent_add(gl::vertex_array& debug_vao, camera_t& camera){
+        if(!_S_DebugProgram)
+            throw std::runtime_error("point_light_array_t<...>::debug_draw: _S_DebugProgram was uninitialized / failed to initialize!\n");
+
+        _S_DebugProgram.use();
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_BLEND);
+        glBlendEquation(GL_FUNC_ADD);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        camera.bind();
+        debug_vao.bind();
+        gl::draw_one(gl::enums::POINTS, 0, _M_ArraySize);
+    }
+    void debug_draw_transparent_mul(gl::vertex_array& debug_vao, camera_t& camera){
+        if(!_S_DebugProgram)
+            throw std::runtime_error("point_light_array_t<...>::debug_draw: _S_DebugProgram was uninitialized / failed to initialize!\n");
+
+        _S_DebugProgram.use();
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_BLEND);
+        glBlendEquation(GL_MULTIPLY_KHR);
+
         camera.bind();
         debug_vao.bind();
         gl::draw_one(gl::enums::POINTS, 0, _M_ArraySize);

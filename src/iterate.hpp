@@ -44,7 +44,7 @@ inline bool update(appstate_t& state){
 inline bool draw(appstate_t& state){
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     
-    point_lights.debug_draw(point_lights_debug_vao, primary_camera);
+    point_lights.debug_draw_transparent_add(point_lights_debug_vao, primary_camera);
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return false;
