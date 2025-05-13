@@ -1,22 +1,41 @@
 #pragma once
+#include "camera/camera.hpp"
 #include "cubemap/cube-map-array.hpp"
 #include "cubemap/shadow-map-array.hpp"
+#include "draw/draw.hpp"
 #include "gl/buffer.hpp"
 #include "gl/buffer_enums.hpp"
+#include "gl/draw_enums.hpp"
+#include "gl/program.hpp"
 #include "gl/texture_enums.hpp"
+#include "gl/vertex_array.hpp"
+#include "shader/load.hpp"
 #include <array>
 #include <cstddef>
 #include <glm/ext/matrix_float4x4.hpp>
+#include <iostream>
+#include <opengl-framework/Wrappers/GLEW.hpp>
 #include <span>
 #include <sstream>
 #include <stdexcept>
 #include <sys/types.h>
 
 
+/*
+    technically we could reinterpret the _M_GPULightData so, that the vec4, that makes up its position and radius would be passed to a vertex shader,
+    and its other vec4 can be used to display the intensity change, but that would require some honest work...
+*/
 
 template<typename point_light_type>
 struct point_light_array_t{
     inline static constexpr uint npos = point_light_type::npos;
+
+    inline static gl::program _S_DebugProgram{nullptr};
+
+    enum debug_attributes{
+        aPositionRadius = 0,
+        aColorIntensity = 1,
+    };
     
     shadow_map_array            _M_ShadowMapArray       = {nullptr};
     cube_map_array              _M_TintMapArray         = {nullptr};
@@ -65,9 +84,13 @@ struct point_light_array_t{
     const point_light_type& add(const point_light_type& pl = {}){
         for(size_t i = 0; i < _M_ArraySize; i++){
             point_light_type& l = _M_LightData[i];
-            if(l.index() != npos) continue;
+            if(l.index() != npos)  //exists
+                continue;
+            
             l = pl;
             l.index(i);
+            _M_ModifiedData = true;
+            _M_ModifiedMatricies = true;
             return l;
         }
         throw std::runtime_error("point_light_array_t::add(...): out of space!");
@@ -89,10 +112,12 @@ struct point_light_array_t{
 
     void upload(){
         if(_M_ModifiedData ){
+            std::cout << "Uploading light_subdata...\n";
             _M_GPULightData.subdata(_M_LightData, sizeof(*_M_LightData)*_M_ArraySize);
             _M_ModifiedData = false;
         }
         if(_M_ModifiedMatricies){
+            std::cout << "Uploading matrix_subdata...\n";
             _M_GPULightMatricies.subdata(_M_LightMatricies, sizeof(*_M_LightMatricies)*_M_ArraySize);
             _M_ModifiedMatricies = false;
         }
@@ -151,6 +176,36 @@ struct point_light_array_t{
         const gl::enums::texture::format_storage &tint_storage_type = gl::enums::texture::STORAGE_RGB8
     ){
         create(count,shadow_resolution,tint_resolution,shadow_storage_type,tint_storage_type);
+    }
+
+
+    bool debug_init(){
+        return (_S_DebugProgram = shader::load("ass/shaders/light-point-display"));
+    }
+        //returns true if error occured (vao can be in an invalid state)
+    bool debug_bind(gl::vertex_array& debug_vao){
+        debug_vao.bind();
+        debug_vao.enable_attribute(aPositionRadius);  //pos, rad
+        debug_vao.enable_attribute(aColorIntensity);  //color, intensity
+        _M_GPULightData.bind(gl::enums::buffer::type::ARRAY_BUFFER);
+        _M_GPULightData.attribute(aPositionRadius, 4, gl::enums::buffer::FLOAT, sizeof(point_light_type), false, point_light_type::position_radius_offset);
+        _M_GPULightData.attribute(aColorIntensity, 4, gl::enums::buffer::FLOAT, sizeof(point_light_type), false, point_light_type::color_intensity_offset);
+        debug_vao.unbind();
+        _M_GPULightData.unbind(gl::enums::buffer::ARRAY_BUFFER);
+        return false;
+    }
+
+    void debug_draw(gl::vertex_array& debug_vao, camera_t& camera){
+        if(!_S_DebugProgram)
+            throw std::runtime_error("point_light_array_t<...>::debug_draw: _S_DebugProgram was uninitialized / failed to initialize!\n");
+
+        _S_DebugProgram.use();
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glDisable(GL_BLEND);
+        camera.bind();
+        debug_vao.bind();
+        gl::draw_one(gl::enums::POINTS, 0, _M_ArraySize);
     }
 };
 

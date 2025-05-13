@@ -5,6 +5,7 @@
 #include "gl/texture_enums.hpp"
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_uint2.hpp>
+#include <iostream>
 
 /*
 TBH i have no clue what are the benefits / usecases...
@@ -39,7 +40,8 @@ struct cube_map_array{
         create(glm::uvec2{resolution}, count, storage_type);
     }
     inline void create(const glm::uvec2& resolution, const uint& count, const gl::enums::texture::format_storage& storage_type){
-        _M_CubemapTexture.create(gl::enums::texture::TextureCubeMapArray, glm::uvec3{resolution, count}, storage_type, 1);
+        //std::cout << "Creating TextureCubeMapArray{" << resolution.x << ", " << resolution.y << ", " << count << " * 6}\n";
+        _M_CubemapTexture.create(gl::enums::texture::TextureCubeMapArray, glm::uvec3{resolution, count * 6}, storage_type, 1);
 
         _M_CubemapTexture.parameter(gl::enums::texture::TEXTURE_MIN_FILTER, GL_LINEAR);
         _M_CubemapTexture.parameter(gl::enums::texture::TEXTURE_MAG_FILTER, GL_LINEAR);
