@@ -19,7 +19,7 @@ inline bool init_lights(){
     point_lights_debug_vao.create();
     point_lights.create(16, 1<<10, 1<<10);
     point_lights.add({0, {0}, glm::vec3{1}, 1});
-    point_lights.add({0, {0}, glm::vec3{-1}, 1});
+    point_lights.add({0, {0}, glm::vec3{-1}, 26});
     point_lights.upload();
 
     point_lights.debug_bind(point_lights_debug_vao);

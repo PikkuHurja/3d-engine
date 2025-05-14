@@ -201,6 +201,7 @@ struct point_light_array_t{
 
         _S_DebugProgram.use();
         glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
         glDepthFunc(GL_LESS);
         glDisable(GL_BLEND);
 
@@ -213,8 +214,8 @@ struct point_light_array_t{
             throw std::runtime_error("point_light_array_t<...>::debug_draw: _S_DebugProgram was uninitialized / failed to initialize!\n");
 
         _S_DebugProgram.use();
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
         glEnable(GL_BLEND);
         glBlendEquation(GL_FUNC_ADD);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -228,8 +229,8 @@ struct point_light_array_t{
             throw std::runtime_error("point_light_array_t<...>::debug_draw: _S_DebugProgram was uninitialized / failed to initialize!\n");
 
         _S_DebugProgram.use();
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
         glEnable(GL_BLEND);
         glBlendEquation(GL_MULTIPLY_KHR);
 

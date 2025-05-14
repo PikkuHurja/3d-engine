@@ -42,7 +42,9 @@ inline bool update(appstate_t& state){
 
     //all of the draws etc
 inline bool draw(appstate_t& state){
+    glClearColor(0, 0, 0, 1);
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
     
     point_lights.debug_draw_transparent_add(point_lights_debug_vao, primary_camera);
 

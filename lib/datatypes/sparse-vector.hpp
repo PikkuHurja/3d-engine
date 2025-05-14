@@ -8,7 +8,9 @@
 #include <utility>
 
 
-
+/*
+    improper size and capasity management
+*/
 template<typename T>
 class sparse_vector{
 public:
