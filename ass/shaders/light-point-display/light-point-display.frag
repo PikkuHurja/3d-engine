@@ -17,7 +17,7 @@ void main(){
     }
     float transparency = (1-sqrt(dist_pow));
     output_color.xyz = color * transparency;
-        //opaque, for now
+        //just disable blending if you want opaque, and hope that the back buffer isn't transparent
     output_color.a = transparency;
 }
 
