@@ -5,12 +5,16 @@
 
 
 #include <algorithm>
+#include <alloca.h>
+#include <initializer_list>
+#include <limits>
 #include <memory>
 #include <span>
 #include <stdexcept>
 #include <utility>
 
-//no copy, since handles would be pointless
+//no copy, since handles would be not created
+//no initializer list, since handles would be not created
 /*
     Guranteed to have all enums concurrent
     Accessor is a pointer to an integer which specifies the index to use etc, etc etc
@@ -23,8 +27,12 @@ public:
     using size_type = unsigned int;
     using index_type = size_type;
     
+    struct handle : public std::weak_ptr<index_type>{
+        operator bool()const{return !expired();}
+    };
     swap_vector() = default;
     ~swap_vector() = default;
+
 
     inline swap_vector(const swap_vector& v) = delete;
     inline swap_vector& operator=(const swap_vector& v) = delete;
@@ -43,12 +51,12 @@ public:
         mv._M_Capacity = 0;
         return *this;
     }
+    swap_vector(size_type reserve):_M_Size(0),_M_Capacity(reserve),_M_Data(std::make_unique<T[]>(reserve)), _M_Index(std::make_unique<std::shared_ptr<index_type>[]>(reserve)){}
 
 
-    struct handle : public std::weak_ptr<index_type>{
-        operator bool()const{return !expired();}
-    };
 
+    T& operator[](const handle& h){return get(h);}
+    const T& operator[](const handle& h)const{return get(h);}
     T& get(const handle& h){
         auto p = h.lock();
         if(!p) throw std::runtime_error("Expired handle for swap_vector<...>");
@@ -134,6 +142,12 @@ public:
         _M_Data.reset();
         _M_Index.reset();
     }
+        //resizes capacity exactly to the said size, does not create or initialize datamembers bcs no handles
+    void resize(size_type sz){
+        if(_M_Capacity == sz) return;
+        if(_M_Size > sz) _M_Size = sz;
+        _alloc(sz);
+    }
 
     bool empty(){return _M_Size==0;}
 
@@ -147,9 +161,17 @@ public:
     std::span<T> span_capacity(){return {_M_Data.get(), _M_Capacity};}
     std::span<const T> span_capacity()const {return {_M_Data.get(), _M_Capacity};}
 
-
+    inline void shrink_to_fit(){
+        if(_M_Size == _M_Capacity) return;
+        _alloc(_M_Size);
+    }
+    inline static constexpr size_type max_size(){return std::numeric_limits<size_type>::max();}
     inline size_type size()const{return _M_Size;}
     inline size_type capacity()const{return _M_Capacity;}
+
+    T& front(){return *_M_Data;}
+    T& back(){return _M_Data[_M_Size-1];}
+
 
 private:
 
