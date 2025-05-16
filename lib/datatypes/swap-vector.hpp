@@ -29,6 +29,10 @@ public:
     
     struct handle : public std::weak_ptr<index_type>{
         operator bool()const{return !expired();}
+
+        friend std::ostream& operator<<(std::ostream& os, const handle& e){
+            return os << e.lock();
+        }
     };
     swap_vector() = default;
     ~swap_vector() = default;
@@ -77,7 +81,22 @@ public:
         if(!p) throw std::runtime_error("Expired handle for swap_vector<...>");
         _M_Data[*p] = std::move(v);
     }
-
+    bool set_cmp(const handle& h, const T& v){
+        auto p = h.lock();
+        if(!p) throw std::runtime_error("Expired handle for swap_vector<...>");
+        auto& e = _M_Data[*p];
+        if(e == v) return false;
+        e= v;
+        return true;
+    }
+    bool set_cmp(const handle& h, T&& v){
+        auto p = h.lock();
+        if(!p) throw std::runtime_error("Expired handle for swap_vector<...>");
+        auto& e = _M_Data[*p];
+        if(e == v) return false;
+        e=std::move(v);
+        return true;
+    }
     handle append(const T& value){
         _expand();
         _M_Data[_M_Size] = value;
