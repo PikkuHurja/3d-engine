@@ -22,10 +22,7 @@ template<
     bool _has_texturemaps = false,  // 2 d
     bool _has_normals = false,      // 3 d
     bool _has_tangents = false,     // 3 d
-    bool _has_bitangents = false,   // 3 d
-    bool _has_indecies = false,     // seperate, uint
-    bool _stores_vertex_count = true,
-    bool _stores_indecie_count = true
+    bool _has_bitangents = false    // 3 d
 >
 struct gl_mesh_interleaved_t{
     using vertex_t = std::conditional_t<_dimention_verticies!=0, glm::vec<_dimention_verticies, float>, void>;
@@ -81,13 +78,13 @@ struct gl_mesh_interleaved_t{
             bitangents_size();
     }
 
-    uint vertex_count()const{return _stores_vertex_count ? *v_vertex_count : -1;}
+    uint vertex_count()const{return v_vertex_count;}
 
-    gl::vertex_array                                            gl_vao{nullptr};
-    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           gl_data{nullptr};
-    gl::typed_buffer<gl::enums::buffer::ELEMENT_ARRAY_BUFFER>   gl_indecies[_has_indecies];
-    uint                                                        v_vertex_count[_stores_vertex_count];
-    uint                                                        v_indecie_count[_stores_indecie_count];
+    gl::vertex_array                                            gl_vao          {nullptr};
+    gl::typed_buffer<gl::enums::buffer::ARRAY_BUFFER>           gl_data         {nullptr};
+    gl::typed_buffer<gl::enums::buffer::ELEMENT_ARRAY_BUFFER>   gl_indecies     {nullptr};
+    uint                                                        v_vertex_count  = 0;
+    uint                                                        v_indecie_count = 0;
 
     void bind()     {gl_vao.bind();}
     inline static void unbind()   {gl::vertex_array::unbind();}
@@ -96,12 +93,12 @@ struct gl_mesh_interleaved_t{
         if(!gl_vao) gl_vao.create();
         gl_vao.bind();
 
-        if constexpr(_has_indecies){
-            if(!*gl_indecies) gl_indecies->create();
+        if (indecie_count && indecie_data){
+            if(!gl_indecies) gl_indecies.create();
             
-            gl_indecies->bind();
-            gl_indecies->data(indecie_data, indecie_count*sizeof(uint), gl::enums::buffer::STATIC_DRAW);
-            if constexpr (_stores_indecie_count) *v_indecie_count = indecie_count;
+            gl_indecies.bind();
+            gl_indecies.data(indecie_data, indecie_count*sizeof(uint), gl::enums::buffer::STATIC_DRAW);
+            v_indecie_count = indecie_count;
         }
 
         if(!gl_data) gl_data.create();
@@ -109,8 +106,7 @@ struct gl_mesh_interleaved_t{
         gl_data.bind();
         gl_data.data(vertex_data, per_vertex_size()*vertex_count, gl::enums::buffer::STATIC_DRAW);
 
-        if constexpr(_stores_vertex_count)
-            *v_vertex_count = vertex_count;
+        v_vertex_count = vertex_count;
 
         if constexpr(_dimention_verticies){
             gl_vao.enable_attribute(gl::shader_spec::aVertex);
@@ -140,6 +136,7 @@ struct gl_mesh_interleaved_t{
         gl_vao.unbind();
     }
     /*
+        from planar, 
         use nullptr for unset
     */
     inline void create(

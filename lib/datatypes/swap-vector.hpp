@@ -168,7 +168,7 @@ public:
         _alloc(sz);
     }
 
-    bool empty(){return _M_Size==0;}
+    bool empty()const{return _M_Size==0;}
 
     T* data(){return _M_Data.get();}
     const T* data()const {return _M_Data.get();}
@@ -209,7 +209,7 @@ private:
     }
     void _alloc(size_type new_capacity){
         std::unique_ptr<T[]> new_data = std::make_unique<T[]>(new_capacity);
-        std::unique_ptr<T[]> new_indexes = std::make_unique<std::shared_ptr<index_type>[]>(new_capacity);
+        std::unique_ptr<std::shared_ptr<index_type>[]> new_indexes = std::make_unique<std::shared_ptr<index_type>[]>(new_capacity);
         std::move(_M_Data.get(), _M_Data.get() + _M_Size, new_data.get());
         std::move(_M_Index.get(), _M_Index.get() + _M_Size, new_indexes.get());
 
