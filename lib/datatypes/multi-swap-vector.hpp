@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <ostream>
 #include <span>
 #include <sstream>
 #include <stdexcept>
@@ -61,64 +62,16 @@ public:
         _M_Size++;
         return h;
     }
-    handle append(val_tuple v){
-        _expand();
-        _set(_M_Size, std::move(v), sequence);
-        handle h{(_M_Index[_M_Size] = std::make_shared<index_type>(_M_Size))};
-        _M_Size++;
-        return h;
-    }
-    handle append(const cref_tuple& v){
-        _expand();
-        _set(_M_Size, v, sequence);
-        handle h{(_M_Index[_M_Size] = std::make_shared<index_type>(_M_Size))};
-        _M_Size++;
-        return h;
-    }
-    handle append(const ref_tuple& v){
-        _expand();
-        _set(_M_Size, v, sequence);
-        handle h{(_M_Index[_M_Size] = std::make_shared<index_type>(_M_Size))};
-        _M_Size++;
-        return h;
-    }
     void set(const handle& h, const val_tuple& v){
         if(auto p = h.lock()) 
             _set(*p, v, sequence);
     }
-    void set(const handle& h, val_tuple v){
-        if(auto p = h.lock()) 
-            _set(*p, std::move(v), sequence);
-    }
-    void set(const handle& h, const cref_tuple& v){
-        if(auto p = h.lock()) 
-            _set(*p, v, sequence);
-    }
-    void set(const handle& h, const ref_tuple& v){
-        if(auto p = h.lock()) 
-            _set(*p, v, sequence);
-    }
-
     bool set_cmp(const handle& h, const val_tuple& v){
         if(auto p = h.lock()) 
             return _set_cmp(*p, v, sequence);
         return false;
     }
-    bool set_cmp(const handle& h, val_tuple v){
-        if(auto p = h.lock()) 
-            return _set_cmp(*p, std::move(v), sequence);
-        return false;
-    }
-    bool set_cmp(const handle& h, const cref_tuple& v){
-        if(auto p = h.lock()) 
-            return _set_cmp(*p, v, sequence);
-        return false;
-    }
-    bool set_cmp(const handle& h, const ref_tuple& v){
-        if(auto p = h.lock()) 
-            return _set_cmp(*p, v, sequence);
-        return false;
-    }
+
 
     inline p_tuple      data(){return _data(sequence);}
     inline cp_tuple     data()const{return _data(sequence);}
@@ -156,7 +109,32 @@ public:
     inline size_type size()const{return _M_Size;}
     inline size_type capacity()const{return _M_Capacity;}
     bool empty()const{return _M_Size==0;}
+
+    inline std::ostream& print(std::ostream& os) const{
+        os << '(' << size() << '/' << capacity() << ")[\n";
+        _print_spans(os, sequence);
+        return os << ']';
+    }
+    friend std::ostream& operator<<(std::ostream& os, const multi_swap_vector& e){
+        return e.print(os);
+    }
 private:
+
+    template<typename T> inline static void _print_span(std::ostream& os, const T* s, const size_type size){
+        os << "    [";
+        if(size) for(size_t i = 0; ;){
+            os << s[i];
+            if(++i == size) break;
+            os << ", ";
+        }
+        os << "]\n";
+    }
+    template<std::size_t ...Is> inline void _print_spans(std::ostream& os, std::index_sequence<Is...>) const{
+        const size_type size_ = size();
+        (_print_span(os, get<Is>(), size_), ...);
+    }
+
+
     template<std::size_t ...Is> inline p_tuple _data(std::index_sequence<Is...>){return p_tuple{std::get<Is>(_M_Data).get()...};}
     template<std::size_t ...Is> inline cp_tuple _data(std::index_sequence<Is...>)const{return cp_tuple{std::get<Is>(_M_Data).get()...};}
 
@@ -166,43 +144,14 @@ private:
     template<std::size_t ...Is> inline span_tuple _capacity_span(std::index_sequence<Is...>){return span_tuple{{std::get<Is>(_M_Data).get(), _M_Size}...};}
     template<std::size_t ...Is> inline cspan_tuple _capacity_span(std::index_sequence<Is...>)const{return cspan_tuple{{std::get<Is>(_M_Data).get(), _M_Size}...};}
 
-    template<std::size_t ...Is> inline void _set(const index_type i, val_tuple& ref, std::index_sequence<Is...>){((std::get<Is>(_M_Data)[i] = std::move(std::get<Is>(ref))), ...);}
     template<std::size_t ...Is> inline void _set(const index_type i, const val_tuple& ref, std::index_sequence<Is...>){((std::get<Is>(_M_Data)[i] = std::get<Is>(ref)), ...);}
-    template<std::size_t ...Is> inline void _set(const index_type i, ref_tuple& ref, std::index_sequence<Is...>){((std::get<Is>(_M_Data)[i] = std::move(std::get<Is>(ref))), ...);}
-    template<std::size_t ...Is> inline void _set(const index_type i, const cref_tuple& ref, std::index_sequence<Is...>){((std::get<Is>(_M_Data)[i] = std::get<Is>(ref)), ...);}
 
-    template<std::size_t ...Is> inline bool _set_cmp(const index_type i, val_tuple& ref, std::index_sequence<Is...>){
-        bool changed = false;
-        ((
-            std::get<Is>(_M_Data)[i] != std::get<Is>(ref) ? 
-                (changed = true, std::get<Is>(_M_Data)[i] = std::move(std::get<Is>(ref)))
-                : void()
-        ),...);
-        return changed;
-    }
+
     template<std::size_t ...Is> inline bool _set_cmp(const index_type i, const val_tuple& ref, std::index_sequence<Is...>){
         bool changed = false;
         ((
             std::get<Is>(_M_Data)[i] != std::get<Is>(ref) ? 
-                (changed = true, std::get<Is>(_M_Data)[i] = std::get<Is>(ref))
-                : void()
-        ),...);
-        return changed;
-    }
-    template<std::size_t ...Is> inline bool _set_cmp(const index_type i, ref_tuple& ref, std::index_sequence<Is...>){
-        bool changed = false;
-        ((
-            std::get<Is>(_M_Data)[i] != std::get<Is>(ref) ? 
-                (changed = true, std::get<Is>(_M_Data)[i] = std::move(std::get<Is>(ref)))
-                : void()
-        ),...);
-        return changed;
-    }
-    template<std::size_t ...Is> inline bool _set_cmp(const index_type i, const cref_tuple& ref, std::index_sequence<Is...>){
-        bool changed = false;
-        ((
-            std::get<Is>(_M_Data)[i] != std::get<Is>(ref) ? 
-                (changed = true, std::get<Is>(_M_Data)[i] = std::get<Is>(ref))
+                void((changed = true, std::get<Is>(_M_Data)[i] = std::get<Is>(ref)))
                 : void()
         ),...);
         return changed;
@@ -230,7 +179,7 @@ private:
     }
     template<std::size_t ...Is>
     inline static void _move_tuple(const up_tuple& from, up_tuple& to, const size_type n, std::index_sequence<Is...>){
-        ((std::move(std::get<Is>(from).get(), std::get<Is>(from).get()+n, std::get<Is>(to)), ...));
+        ((std::move(std::get<Is>(from).get(), std::get<Is>(from).get()+n, std::get<Is>(to).get()), ...));
     }
     inline void _expand(){
         if(_M_Size >= _M_Capacity)
@@ -247,7 +196,7 @@ private:
     }
     inline void _alloc(const size_type new_capacity){
         up_tuple new_data{std::make_unique<Ts[]>(new_capacity)...};
-        _move_tuple(_M_Data, new_data, _M_Size);
+        _move_tuple(_M_Data, new_data, _M_Size, sequence);
         _M_Data = std::move(new_data);
 
         ip_array new_indexes = std::make_unique<std::shared_ptr<index_type>[]>(new_capacity);

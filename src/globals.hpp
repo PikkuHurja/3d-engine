@@ -1,6 +1,9 @@
 #pragma once
 #include "cubemap/skybox.hpp"
 #include "gl/vertex_array.hpp"
+#include <glm/detail/qualifier.hpp>
+#include <glm/ext/vector_float4.hpp>
+#include <ostream>
 #define SDL_MAIN_USE_CALLBACKS 1
 #define sdl_ext extern "C" 
 
@@ -21,6 +24,32 @@ using point_light_array = point_light_array_t<point_light>;
 
 gl::vertex_array  point_lights_debug_vao{nullptr};
 point_light_array point_lights;
+
+
+template<typename T, glm::length_t L, glm::qualifier Q>
+std::ostream& operator <<(std::ostream& os, const glm::vec<L, T, Q>& v){
+    os << '[';
+    for(size_t i = 0; i < L; i++){
+        os << v[i];
+        if(i+1 == L) break;
+        os << ", ";
+    }
+    return os << ']';
+}
+
+std::ostream& operator <<(std::ostream& os, const glm::vec4& v){
+    os << '[';
+    for(size_t i = 0; i < 4; i++){
+        os << v[i];
+        if(i+1 == 4) break;
+        os << ", ";
+    }
+    return os << ']';
+}
+#include "datatypes/multi-instancer.hpp"
+
+using shitbox_5000 = multi_instancer<int, glm::vec4>;
+shitbox_5000 instances[64];
 
 
 

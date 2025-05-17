@@ -4,6 +4,8 @@
 #include "lights/point-light.hpp"
 #include <SDL3/SDL_init.h>
 #include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_float4.hpp>
+#include <iostream>
 
 
 inline bool init_shaders(){
@@ -34,6 +36,16 @@ inline bool init_terrain(){
 
     return false;
 }
+inline void init_test(){
+    for(size_t i = 0; i < 20; i++){
+        instances[i].create(shitbox_5000::vec::val_tuple{i, glm::vec4{i, i*2, i*3, i*4}});
+    }
+    std::cout << *instances << '\n';
+    shitbox_5000::upload(true);
+    std::cout<<shitbox_5000::buffer() << '\n';
+    std::cout<<shitbox_5000::gpu_buffer_capacity() << '\n';
+
+}
 
 inline SDL_AppResult init(appstate_t** pp_state, int argc, char** argv){
     appstate_t& state = *(appstate_t::_S_ActiveState = *pp_state = new appstate_t());
@@ -51,5 +63,7 @@ inline SDL_AppResult init(appstate_t** pp_state, int argc, char** argv){
     if(init_skybox())
         return SDL_APP_FAILURE;
     
+
+    init_test();
     return SDL_APP_CONTINUE;
 }
