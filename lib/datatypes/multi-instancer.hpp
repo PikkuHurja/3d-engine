@@ -73,7 +73,8 @@ public:
     inline static vec::size_type    buffer_size(){return _S_Data.size();}
     inline static vec::size_type    buffer_capacity(){return _S_Data.capacity();}
 
-    inline static std::span<gl::basic_buffer, sizeof...(Ts)> gpu_buffers(){return reinterpret_cast<gl::basic_buffer>(_S_GPUData);}
+    inline static std::span<gl::basic_buffer, sizeof...(Ts)> gpu_buffers(){return reinterpret_cast<gl::basic_buffer*>(_S_GPUData);}
+    inline static gl::basic_buffer& gpu_buffer(uint index){return reinterpret_cast<gl::basic_buffer*>(_S_GPUData)[index];}
     inline static vec::size_type    gpu_buffer_capacity(){return _S_GPUCapacity;}
 
     inline auto get() const{return _S_Data.get(_M_Handle);}
