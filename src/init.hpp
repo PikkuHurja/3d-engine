@@ -2,6 +2,7 @@
 #include "appstate.hpp"
 #include "globals.hpp"
 #include "lights/point-light.hpp"
+#include "model/load.hpp"
 #include <SDL3/SDL_init.h>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_float4.hpp>
@@ -37,13 +38,21 @@ inline bool init_terrain(){
     return false;
 }
 inline void init_test(){
-    for(size_t i = 0; i < 20; i++){
-        instances[i].create(shitbox_5000::vec::val_tuple{i, glm::vec4{i, i*2, i*3, i*4}});
-    }
-    std::cout << *instances << '\n';
-    shitbox_5000::upload(true);
-    std::cout<<shitbox_5000::buffer() << '\n';
-    std::cout<<shitbox_5000::gpu_buffer_capacity() << '\n';
+    //for(size_t i = 0; i < 20; i++){
+    //    instances[i].create(shitbox_5000::vec::val_tuple{i, glm::vec4{i, i*2, i*3, i*4}});
+    //}
+    //std::cout << *instances << '\n';
+    //shitbox_5000::upload(true);
+    //std::cout<<shitbox_5000::buffer() << '\n';
+    //std::cout<<shitbox_5000::gpu_buffer_capacity() << '\n';
+
+        std::cout << "Loading teapot...\n";
+    model::load("ass/models/teapot.obj", teapot_meshes);
+        std::cout << "Loaded teapot!\n";
+        
+    std::cout << "teapot_meshes.size: " << teapot_meshes.size() << '\n';
+    if(!teapot_meshes.empty())
+        std::cout << "teapot_meshes[0].gl_data.id: " << teapot_meshes[0].gl_data.id() << '\n';
 
 }
 

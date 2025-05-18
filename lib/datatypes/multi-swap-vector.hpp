@@ -66,12 +66,41 @@ public:
         if(auto p = h.lock()) 
             _set(*p, v, sequence);
     }
+    template<typename T>
+    void set(const handle& h, const T& v){
+        if(auto p = h.lock()) 
+            std::get<std::unique_ptr<T[]>>(_M_Data)[*h] = v;
+    }
+    template<size_t Idx>
+    void set(const handle& h, const auto& v){
+        if(auto p = h.lock()) 
+            std::get<Idx>(_M_Data)[*h] = v;
+    }
     bool set_cmp(const handle& h, const val_tuple& v){
         if(auto p = h.lock()) 
             return _set_cmp(*p, v, sequence);
         return false;
     }
-
+    template<typename T>
+    bool set_cmp(const handle& h, const T& v){
+        if(auto p = h.lock()){
+            T& elem = std::get<std::unique_ptr<T[]>>(_M_Data)[*h];
+            if(elem == v) return false;
+            elem = v;
+            return true;
+        }
+        return false;
+    }
+    template<size_t Idx>
+    bool set_cmp(const handle& h, const auto& v){
+        if(auto p = h.lock()){
+            auto& elem = std::get<Idx>(_M_Data)[*h];
+            if(elem == v) return false;
+            elem = v;
+            return true;
+        }
+        return false;
+    }
 
     inline p_tuple      data(){return _data(sequence);}
     inline cp_tuple     data()const{return _data(sequence);}

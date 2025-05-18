@@ -6,6 +6,7 @@
 #include "gl/shader_spec.hpp"
 #include "gl/vertex_array.hpp"
 #include "gl_mesh.hpp"
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -13,6 +14,7 @@
 #include <glm/ext/vector_float2.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <initializer_list>
+#include <iostream>
 #include <memory>
 #include <sys/types.h>
 #include <type_traits>
@@ -212,11 +214,11 @@ struct rt_gl_mesh_interleaved_t{
         return has_bitangents() ? vertex_size()+uv_size()+normals_size()+tangents_size() : -1;
     }
 
-    bool has_verticies()const      {return v_enabled_attributes & gl::shader_spec::aVertex;}
-    bool has_uv()const             {return v_enabled_attributes & gl::shader_spec::aUV;}
-    bool has_normals()const        {return v_enabled_attributes & gl::shader_spec::aNormal;}
-    bool has_tangents()const       {return v_enabled_attributes & gl::shader_spec::aTangent;}
-    bool has_bitangents()const     {return v_enabled_attributes & gl::shader_spec::aBitangent;}
+    bool has_verticies()const      {return v_enabled_attributes & 1<<gl::shader_spec::aVertex;}
+    bool has_uv()const             {return v_enabled_attributes & 1<<gl::shader_spec::aUV;}
+    bool has_normals()const        {return v_enabled_attributes & 1<<gl::shader_spec::aNormal;}
+    bool has_tangents()const       {return v_enabled_attributes & 1<<gl::shader_spec::aTangent;}
+    bool has_bitangents()const     {return v_enabled_attributes & 1<<gl::shader_spec::aBitangent;}
     bool has_indecies()const       {return v_indecie_count;}
 
     inline size_t per_vertex_size() const{
@@ -330,8 +332,8 @@ struct rt_gl_mesh_interleaved_t{
     }
     inline void set_vertex_size(uint size = 3){v_vertex_size = size;}
     template<typename ...Attribs>
-    requires (std::is_same_v<gl::shader_spec::VertexInputs, std::remove_all_extents_t<Attribs> && ...>)
-    inline void enable_attribute(Attribs... attrib){v_enabled_attributes |= (attrib | ...);}
+    requires (std::is_same_v<gl::shader_spec::VertexInputs, std::remove_all_extents_t<Attribs>> && ...)
+    inline void enable_attribute(Attribs... attrib){v_enabled_attributes |= ((1<<static_cast<uint>(attrib)) | ...);}
         //destroy indecies
     inline void destroy_indecies(){
         gl_indecies.destroy();
@@ -384,10 +386,10 @@ struct rt_gl_mesh_interleaved_t{
     inline void create(
         const uint vertex_count,
         const void* verticies, //specify vertex depth beforehand
-        const texture_map_t* uv,
-        const normal_t* normals,
-        const tangent_t* tangents,
-        const bitangent_t* bitangents,
+        const void* uv,
+        const void* normals,
+        const void* tangents,
+        const void* bitangents,
         const gl::enums::buffer::usage vertex_usage = gl::enums::buffer::STATIC_DRAW, 
         const uint indecie_count = 0,
         const uint* indecie_data = nullptr,
@@ -396,14 +398,20 @@ struct rt_gl_mesh_interleaved_t{
         uint stride = per_vertex_size();
         std::unique_ptr<uint8_t[]> vertex_data = std::make_unique<uint8_t[]>(stride*vertex_count);
 
-        
+        if(has_verticies())     assert(verticies);
+        if(has_uv())            assert(uv);
+        if(has_normals())       assert(normals);
+        if(has_tangents())      assert(tangents);
+        if(has_bitangents())    assert(bitangents);
+
+        std::cout << "interweaving data...\n";
         for(size_t vtx = 0; vtx < vertex_count; vtx++){
             auto data = vertex_data.get()+vtx*stride;
-            if(has_verticies())       { std::memmove(data+vertex_offset(),        reinterpret_cast<const uint8_t*>(verticies)+vtx*vertex_size(),  vertex_size());     }
-            if(has_uv())              { std::memmove(data+uv_offset(),            uv+vtx, uv_size()); }
-            if(has_normals())         { std::memmove(data+normals_offset(),       normals+vtx,    normals_size());    }
-            if(has_tangents())        { std::memmove(data+tangents_offset(),      tangents+vtx,   tangents_size());   }
-            if(has_bitangents())      { std::memmove(data+bitangents_offset(),    bitangents+vtx, bitangents_size()); }
+            if(has_verticies())       { std::memmove(data+vertex_offset(),        reinterpret_cast<const uint8_t*>(verticies)+vtx*vertex_size(),    vertex_size());     }
+            if(has_uv())              { std::memmove(data+uv_offset(),            reinterpret_cast<const texture_map_t*>(uv)+vtx,                   uv_size()); }
+            if(has_normals())         { std::memmove(data+normals_offset(),       reinterpret_cast<const normal_t*>(normals)+vtx,                   normals_size());    }
+            if(has_tangents())        { std::memmove(data+tangents_offset(),      reinterpret_cast<const tangent_t*>(tangents)+vtx,                 tangents_size());   }
+            if(has_bitangents())      { std::memmove(data+bitangents_offset(),    reinterpret_cast<const bitangent_t*>(bitangents)+vtx,             bitangents_size()); }
         }
 
         create(vertex_count, vertex_data.get(), vertex_usage, indecie_count,  indecie_data, indecie_usage);

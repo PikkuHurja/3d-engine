@@ -67,6 +67,8 @@ public:
         return out;
     }
 
+    template<typename T> inline void set(const T& v){_S_Modified |= _S_Data.set_cmp(_M_Handle, v);}
+
 
 
     inline static vec&              buffer(){return _S_Data;}

@@ -1,9 +1,11 @@
 #pragma once
 #include "cubemap/skybox.hpp"
 #include "gl/vertex_array.hpp"
+#include "gl_mesh_interleaved.hpp"
 #include <glm/detail/qualifier.hpp>
 #include <glm/ext/vector_float4.hpp>
 #include <ostream>
+#include <vector>
 #define SDL_MAIN_USE_CALLBACKS 1
 #define sdl_ext extern "C" 
 
@@ -25,6 +27,7 @@ using point_light_array = point_light_array_t<point_light>;
 gl::vertex_array  point_lights_debug_vao{nullptr};
 point_light_array point_lights;
 
+std::vector<rt_gl_mesh_interleaved_t> teapot_meshes;
 
 template<typename T, glm::length_t L, glm::qualifier Q>
 std::ostream& operator <<(std::ostream& os, const glm::vec<L, T, Q>& v){
