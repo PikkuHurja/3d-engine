@@ -1,5 +1,6 @@
 #pragma once
 #include "cubemap/skybox.hpp"
+#include "gl/program.hpp"
 #include "gl/vertex_array.hpp"
 #include "gl_mesh_interleaved.hpp"
 #include <glm/detail/qualifier.hpp>
@@ -26,6 +27,9 @@ using point_light_array = point_light_array_t<point_light>;
 
 gl::vertex_array  point_lights_debug_vao{nullptr};
 point_light_array point_lights;
+
+gl::program       basic_program{nullptr};
+gl::program       basic_instanced_program{nullptr};
 
 std::vector<rt_gl_mesh_interleaved_t> teapot_meshes;
 

@@ -3,11 +3,13 @@
 #include "gl/buffer_enums.hpp"
 #include "gl/shader_spec.hpp"
 #include "gl_mesh_interleaved.hpp"
+#include <algorithm>
 #include <cassert>
 #include <filesystem>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -36,8 +38,13 @@ namespace model {
 
 
             std::vector<unsigned int> indecies;
+            indecies.reserve(ai_mesh->mNumFaces*3);
             unsigned int indecie_count = 0;
             const unsigned int* indecie_data = nullptr;
+
+            if(ai_mesh->HasPositions()) for(size_t i = 0; i < std::min(vert_count, 40u); i++){
+                std::cout << i<< ": " << ai_mesh->mVertices[i].x << ", " << ai_mesh->mVertices[i].y << ", " << ai_mesh->mVertices[i].z << '\n';            
+            }
 
 
             if(ai_mesh->mNumFaces == 1){
@@ -49,6 +56,7 @@ namespace model {
                     const aiFace& face = ai_mesh->mFaces[i];
                     for (unsigned int j = 0; j < face.mNumIndices; ++j) {
                         indecies.push_back(face.mIndices[j]);
+                        if(j < 3) std::cout << "j: " << j << ", indecie: " << face.mIndices[j]  << '\n';
                     }
                 }
                 indecie_count = indecies.size();

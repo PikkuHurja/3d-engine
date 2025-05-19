@@ -340,6 +340,7 @@ struct rt_gl_mesh_interleaved_t{
         v_indecie_count = 0;
     }
     inline void  indecies(const uint indecie_count, const uint* indecie_data, const gl::enums::buffer::usage indecie_usage = gl::enums::buffer::STATIC_DRAW){
+        gl_vao.bind();
         if (!indecie_count)
             return;
         
@@ -369,18 +370,27 @@ struct rt_gl_mesh_interleaved_t{
         const uint vertex_count, const void* vertex_data, const gl::enums::buffer::usage vertex_usage = gl::enums::buffer::STATIC_DRAW, 
         const uint indecie_count = 0, const uint* indecie_data = nullptr, const gl::enums::buffer::usage indecie_usage = gl::enums::buffer::STATIC_DRAW
     ){
+        v_vertex_count = vertex_count;
         if(!gl_vao) gl_vao.create();
         gl_vao.bind();
 
-        indecies(indecie_count, indecie_data);
+        if (indecie_count){
+            if(!gl_indecies) gl_indecies.create();
+            
+            gl_indecies.bind();
+            gl_indecies.data(indecie_data, indecie_count*sizeof(*indecie_data), gl::enums::buffer::STATIC_DRAW);
+            v_indecie_count = indecie_count;
+        }
 
         uint stride = per_vertex_size();
         if(!gl_data) gl_data.create();
+        gl_data.bind();
         gl_data.data(vertex_data, stride*vertex_count, gl::enums::buffer::STATIC_DRAW);
         enable_attributes();
 
         gl_vao.unbind();
         gl_data.unbind();
+        if(indecie_count) gl_indecies.unbind();
     }
 
     inline void create(

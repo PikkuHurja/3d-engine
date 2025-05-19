@@ -1,5 +1,8 @@
 #pragma once
 #include "appstate.hpp"
+#include "draw/draw.hpp"
+#include "gl/draw_enums.hpp"
+#include "gl/uniform_buffer.hpp"
 #include "globals.hpp"
 #include <SDL3/SDL_init.h>
 #include <iostream>
@@ -45,8 +48,18 @@ inline bool draw(appstate_t& state){
     glClearColor(0, 0, 0, 1);
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
+    basic_program.use();
+    primary_camera.bind();
+
+    for(auto& e : teapot_meshes){
+        e.gl_vao.bind();
+        gl::draw_one(gl::enums::POINTS, 0, e.v_vertex_count);
+        //gl::draw_indecies(gl::enums::drawmode::POINTS, e.v_indecie_count);
+    }
+
+
     
-    point_lights.debug_draw_transparent_add(point_lights_debug_vao, primary_camera);
+    //point_lights.debug_draw_transparent_add(point_lights_debug_vao, primary_camera);
 
     SDL::GL::SwapWindow(*state.core.p_window);
     return false;

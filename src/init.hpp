@@ -3,6 +3,7 @@
 #include "globals.hpp"
 #include "lights/point-light.hpp"
 #include "model/load.hpp"
+#include "shader/load.hpp"
 #include <SDL3/SDL_init.h>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_float4.hpp>
@@ -11,7 +12,8 @@
 
 inline bool init_shaders(){
     point_lights.debug_init();
-    
+    basic_program = shader::load("ass/shaders/basic");
+    basic_instanced_program = shader::load("ass/shaders/instanced/basic");
     return false;
 }
 inline bool init_cameras(){
